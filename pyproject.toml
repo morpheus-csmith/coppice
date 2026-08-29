@@ -1,0 +1,23 @@
+[project]
+name = "coppice"
+version = "0.1.0"
+description = "Branch-search migration agent on Token Factory Sandboxes"
+requires-python = ">=3.12"
+dependencies = [
+  "openai>=1.40",
+  "python-dotenv>=1.0",
+  "docker>=7.1",
+  "rich>=13.7",
+  "pydantic>=2.8",
+  "tenacity>=9.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8.3", "pytest-asyncio>=0.24"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
