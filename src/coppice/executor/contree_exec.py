@@ -25,6 +25,7 @@ import os
 import time
 
 from contree_sdk import Contree
+from dotenv import load_dotenv
 from contree_sdk.sdk.exceptions import (
     ApiTimeoutError,
     CancelledOperationError,
@@ -66,6 +67,7 @@ class ContreeState:
         *,
         stdin: str | None = None,
         timeout_s: float = 600.0,
+        cwd: str | None = None,
     ) -> ExecResult:
         t0 = time.perf_counter()
 
@@ -75,7 +77,7 @@ class ContreeState:
             stdin=stdin,
             timeout=timeout_s,
             disposable=False,
-            cwd=self._ex.workdir,
+            cwd=cwd or self._ex.workdir,
             truncate_output_at=self._ex.truncate_at,
         )
 
@@ -119,30 +121,64 @@ class ContreeState:
         )
 
 
+def _oci_ref(image: str) -> str:
+    """Normalise an image name to a docker:// reference.
+
+    Three shapes matter to us:
+      python:3.12                      -> docker.io/library/python:3.12
+      someorg/thing:tag                -> docker.io/someorg/thing:tag
+      ghcr.io/epoch-research/x:latest  -> ghcr.io/... (already has a host)
+
+    The third is the SWE-bench case. Prefixing docker.io onto it produced a
+    reference that could never resolve.
+    """
+    if "://" in image:
+        return image
+    head = image.split("/")[0]
+    if "/" in image and ("." in head or ":" in head or head == "localhost"):
+        return f"docker://{image}"          # explicit registry host
+    if "/" in image:
+        return f"docker://docker.io/{image}"
+    return f"docker://docker.io/library/{image}"
+
+
 class ContreeExecutor:
     name = "contree"
 
     def __init__(
         self,
         *,
-        token: str | None = None,
         workdir: str = "/w",
         truncate_at: int = 64_000,
     ):
-        token = token or os.environ.get("NEBIUS_API_KEY")
-        if not token:
-            raise RuntimeError("NEBIUS_API_KEY is not set")
-        self.client = Contree(token=token)
+        # IAMAuth's defaults are the NAMES of environment variables, not
+        # values -- it resolves NEBIUS_API_KEY and NEBIUS_PROJECT_ID itself.
+        # Passing token= to Contree() sets the credential but leaves the
+        # project unset, which the API rejects with:
+        #     400 Missing "Project" header
+        # So we populate the environment and construct with no arguments.
+        load_dotenv()
+        missing = [
+            v for v in ("NEBIUS_API_KEY", "NEBIUS_PROJECT_ID")
+            if not os.environ.get(v)
+        ]
+        if missing:
+            raise RuntimeError(
+                f"{' and '.join(missing)} not set -- add to .env. "
+                f"ConTree scopes every request to a project."
+            )
+        self.client = Contree()
         self.workdir = workdir
         self.truncate_at = truncate_at
         self.total_cost = 0.0
 
     async def base(self, image: str) -> ContreeState:
-        ref = image if "://" in image else f"docker://docker.io/library/{image}"
+        ref = _oci_ref(image)
         img = await self.client.images.oci(ref)
         root = ContreeState(self, img, 0)
-        # Materialise the workdir so `cwd` is always valid downstream.
-        return (await root.run(f"mkdir -p {self.workdir}")).state
+        # Materialise the workdir so `cwd` is valid downstream. This one
+        # run must NOT use it as cwd -- it does not exist yet.
+        return (await root.run(f"mkdir -p {self.workdir}", cwd="/")).state
 
     async def aclose(self) -> None:
         close = getattr(self.client, "close", None) or getattr(self.client, "aclose", None)

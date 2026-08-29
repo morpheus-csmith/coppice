@@ -112,11 +112,18 @@ class Ledger:
 # ON -- those are the judgement calls, made a handful of times per run,
 # where the token cost is irrelevant and being wrong is expensive.
 ROLES: dict[str, tuple[str, bool]] = {
-    "propose":    ("nano",  False),  # generate candidate patches at width
-    "triage":     ("nano",  False),  # classify a failing test log
-    "repair":     ("super", False),  # fix a near-miss inside one branch
+    # Measured, not assumed -- see findings-05. Nano applied 0 of 16
+    # proposals (it paraphrases source instead of copying it) and Ultra
+    # applied 1 of 16 at 8x the cost (it returns prose, not blocks). The
+    # binding constraint on a patch-by-exact-match agent is structured
+    # output compliance, not reasoning, and only Super clears it.
+    "propose":    ("super", False),  # generate candidate patches at width
+    "triage":     ("super", False),  # classify a failing test log
+    "repair":     ("super", False),  # fix a rejected patch or a near-miss
+    # Free-text roles: no format is enforced, so Ultra is allowed. Its
+    # value here is UNMEASURED -- called rarely, and flagged as such.
     "adjudicate": ("ultra", True),   # rank tied branches
-    "plan":       ("ultra", True),   # decompose the migration up front
+    "plan":       ("ultra", True),   # decompose the task up front
     "explain":    ("ultra", True),   # write the final diff rationale
 }
 

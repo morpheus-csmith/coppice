@@ -105,6 +105,71 @@ a correct reply adding a parameter looks like:
 Note the SEARCH block keeps the original line breaks and indentation exactly.
 """
 
+REPAIR = """Your edit block did not apply. The error was:
+
+    {error}
+
+Your previous reply was:
+---
+{previous}
+---
+
+The file is UNCHANGED -- nothing you sent was applied. Look at the source
+again and send a corrected block. The SEARCH text must be copied from the
+file character for character and must appear exactly once; add adjacent
+lines if you need to make it unique. Blocks only.
+"""
+
+
+async def _propose_one(
+    router, prompt: str, source: str, *, tier: str | None, think: bool | None,
+    temperature: float,
+) -> tuple[str | None, str, bool]:
+    """One candidate, with a single repair attempt on a failed apply.
+
+    Returns (patched_source | None, note, repaired).
+
+    A rejected proposal already carries a precise diagnosis -- "SEARCH not
+    found", "ambiguous", "no-op". Feeding that back costs one model call
+    and no container, and 33% of proposals were being thrown away without
+    ever asking the model to fix an error it could see. Recovered
+    proposals are width we already paid for.
+    """
+    async def ask(text: str, temp: float):
+        if tier:
+            return await router.chat(tier, text, system=SYSTEM, think=think,
+                                     temperature=temp, max_tokens=12000 if think else 2500)
+        kw = {} if think is None else {"think": think}
+        return await router.act("propose", text, system=SYSTEM, temperature=temp,
+                                max_tokens=12000 if think else 2500, **kw)
+
+    try:
+        reply = await ask(prompt, temperature)
+    except Exception as e:
+        return None, f"call failed: {type(e).__name__}", False
+
+    try:
+        patched, _ = apply_text(source, reply.text)
+        return patched, "", False
+    except PatchError as exc:
+        # Python unbinds the `as` name when the except block exits, so the
+        # message has to be copied out here or it is gone below.
+        why = str(exc)
+
+    # one repair round -- greedy, because we want correctness not diversity
+    try:
+        fixed = await ask(
+            prompt + "\n\n" + REPAIR.format(error=why, previous=reply.text[:2000]),
+            0.0,
+        )
+        patched, _ = apply_text(source, fixed.text)
+        return patched, "", True
+    except PatchError as second:
+        return None, f"{second} (after repair)", False
+    except Exception as e:
+        return None, f"repair failed: {type(e).__name__}", False
+
+
 def _strip_fences(text: str) -> str:
     t = text.strip()
     if t.startswith("```"):
@@ -199,7 +264,6 @@ async def search(
 
     frontier = [Node(root_state, original, baseline, baseline_out)]
     branches_run = 0
-    lenient_used = 0
 
     for gen in range(1, depth + 1):
         log.emit("gen.start", gen=gen, frontier=len(frontier))
@@ -213,46 +277,36 @@ async def search(
                 failures=parent.failures,
                 target=task.target,
             )
-            replies = await asyncio.gather(
+            outcomes = await asyncio.gather(
                 *[
-                    (
-                        router.chat(propose_tier, prompt, system=SYSTEM,
-                                    think=(False if propose_think is None
-                                           else propose_think),
-                                    temperature=t,
-                                    max_tokens=12000 if propose_think else 2500)
-                        if propose_tier
-                        else router.act("propose", prompt, system=SYSTEM,
-                                        temperature=t,
-                                        max_tokens=12000 if propose_think else 2500,
-                                        **({} if propose_think is None
-                                           else {"think": propose_think}))
-                    )
+                    _propose_one(router, prompt, parent.content,
+                                 tier=propose_tier, think=propose_think,
+                                 temperature=t)
                     for t in _temperatures(width)
                 ],
                 return_exceptions=True,
             )
 
-            # Apply locally first. A candidate whose blocks do not match is
-            # rejected here, in Python, and never costs a container. This is
-            # what makes width cheap: bad proposals are free.
             candidates: list[str] = []
             rejected = 0
-            for r in replies:
-                if isinstance(r, Exception):
-                    rejected += 1
-                    continue
-                try:
-                    patched, lenient = apply_text(parent.content, r.text)
-                    lenient_used += int(lenient)
-                    candidates.append(patched)
-                except PatchError as e:
+            repaired = 0
+            for o in outcomes:
+                if isinstance(o, Exception):
                     rejected += 1
                     log.emit("proposal.rejected", gen=gen, parent=parent.id,
-                             reason=str(e)[:90])
+                             reason=type(o).__name__)
+                    continue
+                patched, note, was_repaired = o
+                if patched is None:
+                    rejected += 1
+                    log.emit("proposal.rejected", gen=gen, parent=parent.id,
+                             reason=note[:90])
+                else:
+                    candidates.append(patched)
+                    repaired += int(was_repaired)
             log.emit("propose", gen=gen, parent=parent.id, asked=width,
                      applied=len(candidates), rejected=rejected,
-                     lenient=lenient_used)
+                     repaired=repaired)
 
             # k forks of the SAME checkpoint. No re-setup, ever.
             runs = await asyncio.gather(

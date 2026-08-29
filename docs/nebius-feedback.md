@@ -65,3 +65,48 @@ branch are scored differently.
 "no matching distribution" from another environment on a different index
 mirror. Worth checking propagation, since a hackathon participant hitting that
 would likely assume the package does not exist.
+
+## 7. Sandboxes returns 403 with no route to enablement
+
+A fresh Token Factory account with a valid API key and project can call
+inference successfully, but every Sandboxes call returns:
+
+```
+403 "You do not have permission to perform this action"
+```
+
+The Sandboxes overview documents a six-step quick start and says nothing about
+requesting access, joining a waitlist, or enabling the service on a project.
+So the failure gives a developer nowhere to go: the credentials are right, the
+docs imply it should work, and the error names no missing permission, no
+console setting, and no next step.
+
+Reaching the right error took three tries, each one more specific than the
+last -- 401-shaped, then `400 Missing "Project" header`, then this. That
+progression is good API design. The last step should continue it: a 403 on a
+beta service ought to say *how* to get access, or the overview should state
+that access is granted separately.
+
+**Suggested fix:** either enable Sandboxes by default for accounts that have
+completed billing, or have the 403 body name the enablement path. As it
+stands, a hackathon participant whose project depends on Sandboxes hits a wall
+with no documented way past it.
+
+## 8. Nemotron 3 model ids use three naming conventions in one catalogue
+
+`GET /v1/models` on Token Factory returns the Nemotron 3 family as:
+
+```
+nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B     doubled vendor prefix, TitleCase
+nvidia/nemotron-3-super-120b-a12b          all lowercase
+nvidia/Nemotron-3-Ultra-550b-a55b          mixed: TitleCase name, lowercase size
+```
+
+Three sibling models, three conventions. Ids cannot be derived from the model
+name, from each other, or from the ids the same models carry on NVIDIA Build
+(which uses all-lowercase for all three). Anyone porting between the two
+providers must hand-map every tier and will get a 404 on two of three.
+
+**Suggested fix:** normalise to one convention, or publish aliases so a single
+lowercase id resolves everywhere. This is a small thing that costs every
+integrator the same twenty minutes.

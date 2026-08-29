@@ -62,3 +62,49 @@ with other work.
   on mechanical transformations — which, if true, is exactly the split the
   ROLES table already encodes.
 - Confirm this holds on Nebius Token Factory, not just NVIDIA Build.
+
+---
+
+## Addendum (same day) — Ultra's latency floor was the free tier, not the model
+
+The conclusion above ("Ultra cannot sit in any inner loop; 15.6s even with
+reasoning off") was measured on NVIDIA Build's free tier. On Nebius Token
+Factory the same model, same prompt:
+
+| tier | NVIDIA Build (free) | Nebius Token Factory |
+|---|---|---|
+| Nano | 2.9s | 2.1s |
+| Super | 1.5s | **0.7s** |
+| Ultra | 31.0s | **1.0s** |
+
+Ultra is roughly **30x faster** on Token Factory -- faster than Super was on
+the free tier. The 15.6s floor was queueing on shared free capacity, not a
+property of a 550B model.
+
+**This reopens the routing question.** The ROLES table keeps Ultra to a
+handful of judgement calls per run because it was assumed unaffordable in
+latency. At 1.0s that assumption is void: Ultra may be viable for candidate
+generation itself, which would raise per-proposal quality in exactly the band
+finding-04 shows width paying off.
+
+Do not rewrite ROLES on this measurement alone -- it is one prompt, one
+sample, and token cost still differs by tier. But re-run the width curve with
+`--propose-tier ultra` before settling the architecture; if Ultra's per-shot
+solve rate is meaningfully above Super's, the cost calculus changes.
+
+**Methodological note:** two findings in this project have now come from
+measuring an artefact of the environment rather than the thing under study
+(the width-1 sampling error in finding-03, and this). Benchmark the
+configuration you intend to ship on.
+
+### Correction to the addendum above
+
+The "30x faster" figure came from a 68-token prompt. Under a realistic ~8,300
+token prompt, Ultra on Token Factory takes **17s per call** (538s across 31
+calls), not 1.0s. Latency scales with prompt size and the smoke test used the
+smallest possible input.
+
+The addendum's own closing advice -- benchmark the configuration you intend to
+ship on -- was violated in the act of writing it. Third instance of this class
+of error in one session. The rule to internalise: **a measurement taken under
+conditions you will not ship under is not evidence, however clean it looks.**

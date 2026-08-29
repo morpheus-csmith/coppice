@@ -57,17 +57,24 @@ PROVIDERS = {
             "NEBIUS_BASE_URL", "https://api.tokenfactory.us-central1.nebius.com/v1"
         ),
         api_key_env="NEBIUS_API_KEY",
-        nano=os.environ.get("MODEL_NANO", "nvidia/nemotron-3-nano-30b-a3b"),
+        # Verified against Token Factory's live catalogue. The three models
+        # use three different naming conventions -- "nvidia/NVIDIA-" doubled
+        # and TitleCase for Nano, all-lowercase for Super, mixed for Ultra --
+        # so these cannot be derived and must be copied exactly.
+        nano=os.environ.get("MODEL_NANO", "nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B"),
         super_=os.environ.get("MODEL_SUPER", "nvidia/nemotron-3-super-120b-a12b"),
-        ultra=os.environ.get("MODEL_ULTRA", "nvidia/nemotron-3-ultra-550b-a55b"),
+        ultra=os.environ.get("MODEL_ULTRA", "nvidia/Nemotron-3-Ultra-550b-a55b"),
     ),
     "nvidia_build": Provider(
         name="nvidia_build",
         base_url=os.environ.get("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1"),
         api_key_env="NVIDIA_API_KEY",
-        nano=os.environ.get("MODEL_NANO", "nvidia/nemotron-3-nano-30b-a3b"),
-        super_=os.environ.get("MODEL_SUPER", "nvidia/nemotron-3-super-120b-a12b"),
-        ultra=os.environ.get("MODEL_ULTRA", "nvidia/nemotron-3-ultra-550b-a55b"),
+        # NVIDIA Build uses all-lowercase for all three. Deliberately NOT
+        # shared with the Nebius block: the same model has a different id on
+        # each provider, so a single MODEL_NANO override would break one.
+        nano=os.environ.get("NVIDIA_MODEL_NANO", "nvidia/nemotron-3-nano-30b-a3b"),
+        super_=os.environ.get("NVIDIA_MODEL_SUPER", "nvidia/nemotron-3-super-120b-a12b"),
+        ultra=os.environ.get("NVIDIA_MODEL_ULTRA", "nvidia/nemotron-3-ultra-550b-a55b"),
     ),
 }
 

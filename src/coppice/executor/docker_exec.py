@@ -116,7 +116,10 @@ class DockerExecutor:
         mem_limit: str = "900m",
         network: str = "bridge",
     ):
-        self.client = docker.from_env()
+        # Default client timeout is 60s; under width>=16 the daemon can
+        # take longer to answer create/commit and we lose an instance to
+        # a ReadTimeout that has nothing to do with the model.
+        self.client = docker.from_env(timeout=300)
         self.workdir = workdir
         self.mem_limit = mem_limit
         self.network = network
