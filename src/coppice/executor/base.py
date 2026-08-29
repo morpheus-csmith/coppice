@@ -30,6 +30,7 @@ class ExecResult:
     exit_code: int
     duration_s: float
     timed_out: bool = False
+    cost: float | None = None  # backend-reported spend; None if unmetered
 
     @property
     def ok(self) -> bool:
