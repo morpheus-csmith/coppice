@@ -185,7 +185,7 @@ class Router:
         prompt: str,
         *,
         system: str | None = None,
-        temperature: float = 0.7,
+        temperature: float | None = None,
         max_tokens: int = 2048,
         think: bool | None = None,
         **kw,
@@ -206,7 +206,10 @@ class Router:
             extra["chat_template_kwargs"] = ctk
             kw["extra_body"] = extra
             system = system or "/no_think"
-            temperature = 0.0
+            # Only default to greedy. Breadth generation passes an explicit
+            # temperature -- k identical candidates is not a search.
+            if temperature is None:
+                temperature = 0.0
         elif think is True:
             extra = dict(kw.pop("extra_body", {}) or {})
             ctk = dict(extra.get("chat_template_kwargs", {}) or {})
@@ -217,6 +220,9 @@ class Router:
         messages = ([{"role": "system", "content": system}] if system else []) + [
             {"role": "user", "content": prompt}
         ]
+        if temperature is None:
+            temperature = 0.7
+
         t0 = time.perf_counter()
         resp = await self._call(
             tier, messages, temperature=temperature, max_tokens=max_tokens, **kw
