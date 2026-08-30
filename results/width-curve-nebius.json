@@ -1,13 +1,5 @@
 [
   {
-    "instance": "pylint-dev__pylint-7993",
-    "asked": 16,
-    "applied": 0,
-    "solved": 0,
-    "cost": 0,
-    "seconds": 158.20612082300067
-  },
-  {
     "instance": "pylint-dev__pylint-5859",
     "asked": 16,
     "applied": 16,
@@ -78,5 +70,13 @@
     "solved": 0,
     "cost": 0.029047800000000012,
     "seconds": 68.69150263600022
+  },
+  {
+    "instance": "pylint-dev__pylint-7993",
+    "asked": 16,
+    "applied": 14,
+    "solved": 3,
+    "cost": 0.0305451,
+    "seconds": 104.80617800100299
   }
 ]

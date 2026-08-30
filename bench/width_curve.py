@@ -126,6 +126,14 @@ async def main() -> None:
         finally:
             await ex.aclose()
 
+        # A row that cost nothing is a row where no model call happened --
+        # a swallowed error, a stale resume, an interrupted run. Such a row
+        # scores 0/16 and silently drags the published average down. This
+        # has nearly reached a published claim three times; assert on it.
+        if not row.get("error") and row["cost"] <= 0.0:
+            row["error"] = "zero cost -- no model call was made; row is invalid"
+            row["asked"] = 0
+
         results.append(row)
         OUT.write_text(json.dumps(results, indent=2))
         note = row.get("error", "")
