@@ -88,7 +88,10 @@ class DockerState:
             out = container.logs(stdout=True, stderr=False).decode("utf-8", "replace")
             err = container.logs(stdout=False, stderr=True).decode("utf-8", "replace")
 
-            image = container.commit(repository="coppice-state", tag=uuid.uuid4().hex[:12])
+            image = container.commit(
+                repository="coppice-state", tag=uuid.uuid4().hex[:12],
+                conf={"Labels": {"coppice": "1"}},
+            )
             self._ex._track(image.id)
         finally:
             try:
@@ -136,6 +139,26 @@ class DockerExecutor:
         root = DockerState(self, obj.id, 0, False)
         prepared = await root.run(f"mkdir -p {self.workdir}")
         return prepared.state
+
+    @staticmethod
+    def sweep() -> int:
+        """Remove every coppice-committed image, including from dead runs.
+
+        aclose() only runs on a clean exit. A crash or Ctrl-C leaks one
+        tagged image per branch, and `docker image prune` ignores them
+        because they are tagged, not dangling. Hundreds of leaked images
+        degrade the daemon and were the likely cause of a
+        `double free or corruption` abort under width-16 concurrency.
+        """
+        client = docker.from_env(timeout=300)
+        removed = 0
+        for img in client.images.list(name="coppice-state"):
+            try:
+                client.images.remove(img.id, force=True)
+                removed += 1
+            except Exception:
+                pass
+        return removed
 
     async def aclose(self) -> None:
         """Remove every image this run committed. Skipping this fills the disk."""

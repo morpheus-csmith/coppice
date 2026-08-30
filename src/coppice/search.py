@@ -28,7 +28,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .events import EventLog
-from .models import Router
+from .models import ROLES, Router
 from .patcher import PatchError, apply_text
 from .scoring import Score, TestOutcome, parse_pytest, score_branch
 from .tasks import TASKS, Task
@@ -121,53 +121,103 @@ lines if you need to make it unique. Blocks only.
 """
 
 
-async def _propose_one(
-    router, prompt: str, source: str, *, tier: str | None, think: bool | None,
-    temperature: float,
-) -> tuple[str | None, str, bool]:
-    """One candidate, with a single repair attempt on a failed apply.
+async def _expand(
+    router, prompt: str, source: str, width: int, *,
+    tier: str | None, think: bool | None,
+) -> tuple[list[str], list[str], int]:
+    """Propose `width` candidates for one node.
 
-    Returns (patched_source | None, note, repaired).
+    Two calls, not `width` calls. Token Factory bills the prompt once per
+    request regardless of `n`, and ~80% of our spend is input, so sending
+    one identical prompt k times is the most wasteful thing we could do.
 
-    A rejected proposal already carries a precise diagnosis -- "SEARCH not
-    found", "ambiguous", "no-op". Feeding that back costs one model call
-    and no container, and 33% of proposals were being thrown away without
-    ever asking the model to fix an error it could see. Recovered
-    proposals are width we already paid for.
+      call 1: n=1, temperature 0   -- the greedy best guess, which is
+                                      disproportionately often correct
+      call 2: n=width-1, temp 0.9  -- the diversity that width buys
+
+    Failed patches then get one repair attempt each, individually, because
+    each needs its own error fed back. Repairs are the only per-candidate
+    calls left, and they only happen for candidates that failed.
+
+    Returns (applied_sources, rejection_reasons, repaired_count).
     """
-    async def ask(text: str, temp: float):
-        if tier:
-            return await router.chat(tier, text, system=SYSTEM, think=think,
-                                     temperature=temp, max_tokens=12000 if think else 2500)
-        kw = {} if think is None else {"think": think}
-        return await router.act("propose", text, system=SYSTEM, temperature=temp,
-                                max_tokens=12000 if think else 2500, **kw)
+    t = tier or ROLES["propose"][0]
+    th = think if think is not None else ROLES["propose"][1]
+    # Edit blocks are short -- a few lines of SEARCH and a few of REPLACE.
+    # 2500 per completion x 5 completions per batch let one call generate
+    # 12,500 tokens, which made a single generation take 563s. 900 is ample
+    # for two or three blocks and cuts generation time roughly 3x.
+    budget = 12000 if th else 900
 
-    try:
-        reply = await ask(prompt, temperature)
-    except Exception as e:
-        return None, f"call failed: {type(e).__name__}", False
+    async def batch(n: int, temperature: float):
+        if n <= 0:
+            return []
+        try:
+            return await router.sample(t, prompt, n=n, system=SYSTEM, think=th,
+                                       temperature=temperature, max_tokens=budget)
+        except Exception:
+            return []
 
-    try:
-        patched, _ = apply_text(source, reply.text)
-        return patched, "", False
-    except PatchError as exc:
-        # Python unbinds the `as` name when the except block exits, so the
-        # message has to be copied out here or it is gone below.
-        why = str(exc)
+    # Spread across a few batches rather than one hot one.
+    #
+    # The first version sent 1 greedy + (width-1) at temperature 0.9 in a
+    # single call. Apply rate collapsed from 67% to 11%, and 113 of 126
+    # rejections were "no SEARCH/REPLACE block found" -- high temperature
+    # destroys format compliance, which finding-05 identifies as the
+    # binding constraint on this whole system.
+    #
+    # Four batches keep a 4x prompt saving over per-candidate calls while
+    # restoring the low-temperature samples that actually emit blocks.
+    plan = _batch_plan(width)
+    results = await asyncio.gather(*[batch(n, temp) for n, temp in plan])
+    replies = [r for group in results for r in group]
 
-    # one repair round -- greedy, because we want correctness not diversity
-    try:
-        fixed = await ask(
-            prompt + "\n\n" + REPAIR.format(error=why, previous=reply.text[:2000]),
-            0.0,
-        )
-        patched, _ = apply_text(source, fixed.text)
-        return patched, "", True
-    except PatchError as second:
-        return None, f"{second} (after repair)", False
-    except Exception as e:
-        return None, f"repair failed: {type(e).__name__}", False
+    applied: list[str] = []
+    reasons: list[str] = []
+    failures: list[tuple[str, str]] = []
+
+    for r in replies:
+        if not r.text.strip():
+            reasons.append("empty response")
+            continue
+        try:
+            patched, _ = apply_text(source, r.text)
+            applied.append(patched)
+        except PatchError as exc:
+            failures.append((r.text, str(exc)))
+
+    if not failures:
+        return applied, reasons, 0
+
+    # One repair each, greedy. A rejected patch carries a precise diagnosis;
+    # not using it was throwing away a third of every expansion.
+    async def repair(previous: str, why: str):
+        try:
+            fixed = await router.chat(
+                t, prompt + "\n\n" + REPAIR.format(error=why, previous=previous[:2000]),
+                system=SYSTEM, think=th, temperature=0.0, max_tokens=budget,
+            )
+            return apply_text(source, fixed.text)[0], None
+        except PatchError as exc:
+            return None, f"{exc} (after repair)"
+        except Exception as e:
+            return None, f"repair failed: {type(e).__name__}"
+
+    repaired = 0
+    for outcome in await asyncio.gather(
+        *[repair(prev, why) for prev, why in failures], return_exceptions=True
+    ):
+        if isinstance(outcome, Exception):
+            reasons.append(type(outcome).__name__)
+            continue
+        patched, why = outcome
+        if patched is None:
+            reasons.append(why or "rejected")
+        else:
+            applied.append(patched)
+            repaired += 1
+
+    return applied, reasons, repaired
 
 
 def _strip_fences(text: str) -> str:
@@ -194,6 +244,26 @@ def _budget_for(source: str) -> int:
     code. Roughly 3 chars per token for source, plus headroom.
     """
     return max(1500, min(12000, len(source) // 3 + 800))
+
+
+def _batch_plan(width: int) -> list[tuple[int, float]]:
+    """Split `width` candidates across batches at spread temperatures.
+
+    Always reserves one greedy sample: the model's single best guess is
+    right disproportionately often, and it is the most format-compliant
+    output it produces.
+    """
+    if width <= 1:
+        return [(1, 0.0)]
+    rest = width - 1
+    temps = [0.35, 0.65, 0.95]
+    base, extra = divmod(rest, len(temps))
+    plan = [(1, 0.0)]
+    for i, temp in enumerate(temps):
+        n = base + (1 if i < extra else 0)
+        if n:
+            plan.append((n, temp))
+    return plan
 
 
 def _temperatures(k: int) -> list[float]:
@@ -277,33 +347,14 @@ async def search(
                 failures=parent.failures,
                 target=task.target,
             )
-            outcomes = await asyncio.gather(
-                *[
-                    _propose_one(router, prompt, parent.content,
-                                 tier=propose_tier, think=propose_think,
-                                 temperature=t)
-                    for t in _temperatures(width)
-                ],
-                return_exceptions=True,
+            candidates, reasons, repaired = await _expand(
+                router, prompt, parent.content, width,
+                tier=propose_tier, think=propose_think,
             )
-
-            candidates: list[str] = []
-            rejected = 0
-            repaired = 0
-            for o in outcomes:
-                if isinstance(o, Exception):
-                    rejected += 1
-                    log.emit("proposal.rejected", gen=gen, parent=parent.id,
-                             reason=type(o).__name__)
-                    continue
-                patched, note, was_repaired = o
-                if patched is None:
-                    rejected += 1
-                    log.emit("proposal.rejected", gen=gen, parent=parent.id,
-                             reason=note[:90])
-                else:
-                    candidates.append(patched)
-                    repaired += int(was_repaired)
+            rejected = len(reasons)
+            for why in reasons:
+                log.emit("proposal.rejected", gen=gen, parent=parent.id,
+                         reason=why[:90])
             log.emit("propose", gen=gen, parent=parent.id, asked=width,
                      applied=len(candidates), rejected=rejected,
                      repaired=repaired)

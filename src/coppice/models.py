@@ -20,6 +20,7 @@ Two things this layer owns because nothing above it can:
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -157,6 +158,10 @@ class Reply:
     seconds: float
 
 
+class BudgetExceeded(RuntimeError):
+    """Spend cap hit. Raised rather than silently continuing."""
+
+
 class Router:
     def __init__(
         self,
@@ -164,6 +169,7 @@ class Router:
         *,
         per_minute: int | None = None,
         max_concurrency: int = 8,
+        max_spend: float | None = None,
     ):
         self.p = p or provider()
         self.client = AsyncOpenAI(api_key=self.p.api_key, base_url=self.p.base_url)
@@ -172,6 +178,13 @@ class Router:
         self.limiter = RateLimiter(per_minute or default_rpm)
         self.sem = asyncio.Semaphore(max_concurrency)
         self.ledger = Ledger()
+        # A runaway loop on a $25 budget is a real failure mode. Default
+        # from COPPICE_MAX_SPEND so it applies without touching call sites.
+        self.max_spend = (
+            max_spend
+            if max_spend is not None
+            else float(os.environ.get('COPPICE_MAX_SPEND', '3.0'))
+        )
 
     @retry(
         stop=stop_after_attempt(4),
@@ -180,6 +193,10 @@ class Router:
         reraise=True,
     )
     async def _call(self, tier: str, messages: list[dict], **kw):
+        if self.max_spend and self.ledger.total_cost >= self.max_spend:
+            raise BudgetExceeded(
+                f'spent ${self.ledger.total_cost:.4f} of ${self.max_spend:.2f} cap'
+            )
         await self.limiter.acquire()
         async with self.sem:
             return await self.client.chat.completions.create(
@@ -254,6 +271,60 @@ class Router:
         tier, think = ROLES[role]
         kw.setdefault("think", think)
         return await self.chat(tier, prompt, **kw)
+
+    async def sample(
+        self,
+        tier: str,
+        prompt: str,
+        *,
+        n: int,
+        system: str | None = None,
+        temperature: float = 0.9,
+        max_tokens: int = 2500,
+        think: bool | None = None,
+        **kw,
+    ) -> list[Reply]:
+        """n completions from ONE prompt.
+
+        Token Factory honours the OpenAI `n` parameter and bills the prompt
+        once regardless of n. Since roughly 80% of our spend is input and a
+        width-k expansion sends an identical prompt k times, this is the
+        single largest cost lever available -- prompt caching is still only
+        a feature request on Nebius's ideas board.
+
+        Trade-off: all n samples share one temperature. Callers wanting a
+        greedy candidate should ask for it in a separate n=1 call.
+        """
+        if think is False:
+            extra = dict(kw.pop("extra_body", {}) or {})
+            ctk = dict(extra.get("chat_template_kwargs", {}) or {})
+            ctk["enable_thinking"] = False
+            extra["chat_template_kwargs"] = ctk
+            kw["extra_body"] = extra
+            system = system or "/no_think"
+
+        messages = ([{"role": "system", "content": system}] if system else []) + [
+            {"role": "user", "content": prompt}
+        ]
+        t0 = time.perf_counter()
+        resp = await self._call(
+            tier, messages, n=n, temperature=temperature,
+            max_tokens=max_tokens, **kw
+        )
+        elapsed = time.perf_counter() - t0
+
+        usage = getattr(resp, "usage", None)
+        pt = getattr(usage, "prompt_tokens", 0) or 0
+        ct = getattr(usage, "completion_tokens", 0) or 0
+        self.ledger.record(tier, pt, ct, elapsed)
+
+        return [
+            Reply(text=c.message.content or "", tier=tier,
+                  prompt_tokens=pt if i == 0 else 0,
+                  completion_tokens=ct // max(len(resp.choices), 1),
+                  seconds=elapsed)
+            for i, c in enumerate(resp.choices)
+        ]
 
     async def nano(self, prompt: str, **kw) -> Reply:
         return await self.chat("nano", prompt, **kw)
