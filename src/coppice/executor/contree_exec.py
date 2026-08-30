@@ -22,10 +22,16 @@ returns real spend rather than None.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import time
 
 from contree_sdk import Contree
 from dotenv import load_dotenv
+
+# Resolve .env from the package root rather than the call stack:
+# bare load_dotenv(_ENV_PATH) calls find_dotenv(), which asserts when there
+# is no calling file (REPL, `python -` with a heredoc).
+_ENV_PATH = Path(__file__).resolve().parents[3] / ".env"
 from contree_sdk.sdk.exceptions import (
     ApiTimeoutError,
     CancelledOperationError,
@@ -157,7 +163,7 @@ class ContreeExecutor:
         # project unset, which the API rejects with:
         #     400 Missing "Project" header
         # So we populate the environment and construct with no arguments.
-        load_dotenv()
+        load_dotenv(_ENV_PATH)
         missing = [
             v for v in ("NEBIUS_API_KEY", "NEBIUS_PROJECT_ID")
             if not os.environ.get(v)

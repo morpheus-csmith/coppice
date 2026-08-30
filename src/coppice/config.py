@@ -20,11 +20,17 @@ Verify them against the live endpoint with:
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
-load_dotenv()
+# Resolve .env from the package root rather than the call stack:
+# bare load_dotenv(_ENV_PATH) calls find_dotenv(), which asserts when there
+# is no calling file (REPL, `python -` with a heredoc).
+_ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+
+load_dotenv(_ENV_PATH)
 
 
 @dataclass(frozen=True)

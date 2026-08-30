@@ -42,11 +42,16 @@ from .config import Provider, provider
 # figure derived from them appears in the submission. Token counts below
 # are always exact; only the multiplication is uncertain.
 PRICES: dict[str, tuple[float, float]] = {
-    "nano": (0.10, 0.30),    # UNVERIFIED
-    "super": (0.30, 0.90),   # UNVERIFIED
-    "ultra": (1.00, 3.00),   # verified
+    # USD per 1M tokens (input, output), Nebius Token Factory.
+    # Cross-checked against a published Nebius price listing; Super and
+    # Ultra match what we had, Nano was overestimated by ~40%.
+    "nano": (0.06, 0.24),
+    "super": (0.30, 0.90),
+    "ultra": (1.00, 3.00),
 }
-VERIFIED = {"ultra"}
+# Confirm against the Token Factory console before these appear in the
+# submission -- an aggregator listing is a secondary source.
+VERIFIED = {"nano", "super", "ultra"}
 
 
 @dataclass

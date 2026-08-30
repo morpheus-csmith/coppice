@@ -36,14 +36,36 @@ h1{font-family:var(--display);font-size:26px;font-weight:700;letter-spacing:-.02
   font-variant-numeric:tabular-nums;line-height:1}
 .stat dd.pass{color:var(--pass)} .stat dd.acc{color:var(--accent)}
 
-.stage{background:var(--surface);border:1px solid var(--rule);position:relative;
-  overflow:auto;min-height:340px}
-svg{display:block}
-.node{cursor:default}
-.node circle{transition:opacity .18s ease, r .18s ease}
-.lbl{font-family:var(--mono);font-size:9px;fill:var(--muted)}
-.genlbl{font-family:var(--mono);font-size:9.5px;fill:var(--muted);letter-spacing:.12em}
-
+.board{display:flex;flex-direction:column;gap:22px;margin-bottom:6px}
+.gen{border:1px solid var(--rule);background:var(--surface)}
+.gen h3{font-family:var(--display);font-size:13px;font-weight:650;margin:0;
+  padding:11px 15px;border-bottom:1px solid var(--rule);color:var(--muted);
+  letter-spacing:.06em;text-transform:uppercase}
+.gen h3 b{color:var(--accent);font-weight:650}
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:24px 84px 1fr 72px 64px;gap:12px;
+  align-items:center;padding:8px 15px;border-bottom:1px solid var(--rule);
+  border-left:3px solid transparent;opacity:0;transform:translateX(-6px);
+  transition:opacity .2s ease,transform .2s ease}
+.row:last-child{border-bottom:none}
+.row.on{opacity:1;transform:none}
+.row.pass{border-left-color:var(--pass);background:var(--pass-dim)}
+.row.fail{border-left-color:var(--fail)}
+.row.root{border-left-color:var(--accent);background:var(--accent-dim)}
+.dot{width:11px;height:11px;border-radius:50%;border:1.5px solid var(--muted)}
+.row.pass .dot{background:var(--pass);border-color:var(--pass)}
+.row.fail .dot{border-color:var(--fail)}
+.row.root .dot{background:var(--accent);border-color:var(--accent)}
+.rid{font-size:11px;color:var(--muted)}
+.rtests{font-size:12px;color:var(--ink);font-variant-numeric:tabular-nums}
+.row.pass .rtests{color:var(--pass)}
+.rscore,.rsecs{font-size:11px;text-align:right;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.ghost{display:grid;grid-template-columns:24px 1fr;gap:12px;align-items:center;
+  padding:7px 15px;border-bottom:1px dashed var(--rule);opacity:0;
+  transition:opacity .2s ease;font-size:11px;color:var(--muted)}
+.ghost.on{opacity:1}
+.ghost .x{text-align:center}
 .controls{display:flex;gap:14px;align-items:center;margin:14px 0 20px}
 button{font-family:var(--mono);font-size:12px;background:var(--surface2);color:var(--ink);
   border:1px solid var(--rule);padding:7px 16px;cursor:pointer;letter-spacing:.03em}
@@ -83,7 +105,7 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--rule);
     <div class="stat"><dt>Model cost</dt><dd class="acc" id="s-cost">$0.0000</dd></div>
   </dl>
 
-  <div class="stage"><svg id="tree" width="1236" height="380"></svg></div>
+  <div class="board" id="board"></div>
 
   <div class="controls">
     <button id="play">▶ Replay</button>
@@ -103,65 +125,48 @@ footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--rule);
 <script>
 const DATA = {"meta":{"task":"pylint-dev__pylint-7993","width":16,"beam":1,"depth":1,"backend":"docker","provider":"nebius"},"nodes":[{"id":"root","gen":0,"state":"root","label":"10P/1F/0E","score":null},{"id":"f84e67c3","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.0,"seconds":66.2},{"id":"1caa63df","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.0,"seconds":66.2},{"id":"f8234e01","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.0,"seconds":66.2},{"id":"181b50c7","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.02,"seconds":66.2},{"id":"1675fd26","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.0,"seconds":66.2},{"id":"9275ba24","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.0,"seconds":66.2},{"id":"601bfb07","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.01,"seconds":66.2},{"id":"ab89adea","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.0,"seconds":66.2},{"id":"a2cf6252","gen":1,"state":"pass","label":"11P/0F/0E","score":0.98,"seconds":66.2},{"id":"bdefbb89","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.02,"seconds":66.2},{"id":"cb7a3fa1","gen":1,"state":"pass","label":"11P/0F/0E","score":0.94,"seconds":66.2},{"id":"438be3e9","gen":1,"state":"fail","label":"10P/1F/0E","score":-0.02,"seconds":66.2},{"id":"2a18d398","gen":1,"state":"fail","label":"7P/4F/0E","score":-4.52,"seconds":66.2}],"edges":[{"from":"20c4f3d0","to":"f84e67c3"},{"from":"20c4f3d0","to":"1caa63df"},{"from":"20c4f3d0","to":"f8234e01"},{"from":"20c4f3d0","to":"181b50c7"},{"from":"20c4f3d0","to":"1675fd26"},{"from":"20c4f3d0","to":"9275ba24"},{"from":"20c4f3d0","to":"601bfb07"},{"from":"20c4f3d0","to":"ab89adea"},{"from":"20c4f3d0","to":"a2cf6252"},{"from":"20c4f3d0","to":"bdefbb89"},{"from":"20c4f3d0","to":"cb7a3fa1"},{"from":"20c4f3d0","to":"438be3e9"},{"from":"20c4f3d0","to":"2a18d398"}],"frames":[{"t":66.931,"type":"note","text":"environment prepared in 17.2s"},{"t":95.509,"type":"node","id":"root"},{"t":95.509,"type":"note","text":"baseline 10P/1F/0E \u2014 this is what must go green"},{"t":254.949,"type":"rejected","reason":"block 1: SEARCH not found: 'def test_template_option_with_header(linter: PyLinter) -> None"},{"t":254.953,"type":"rejected","reason":"patch is a no-op (after repair)"},{"t":254.954,"type":"rejected","reason":"block 1: SEARCH not found: '# Check to see if all parameters in the template are attribute"},{"t":254.955,"type":"propose","gen":1,"asked":16,"applied":13,"rejected":3,"repaired":4},{"t":321.199,"type":"node","id":"f84e67c3"},{"t":321.205,"type":"node","id":"1caa63df"},{"t":321.206,"type":"node","id":"f8234e01"},{"t":321.207,"type":"node","id":"181b50c7"},{"t":321.208,"type":"node","id":"1675fd26"},{"t":321.209,"type":"node","id":"9275ba24"},{"t":321.21,"type":"node","id":"601bfb07"},{"t":321.211,"type":"node","id":"ab89adea"},{"t":321.212,"type":"node","id":"a2cf6252"},{"t":321.214,"type":"node","id":"bdefbb89"},{"t":321.216,"type":"node","id":"cb7a3fa1"},{"t":321.217,"type":"node","id":"438be3e9"},{"t":321.218,"type":"node","id":"2a18d398"},{"t":321.221,"type":"solved","id":"a2cf6252","of":13,"count":2,"cost":0.0397}]};
 
-const S = {r:13, colW:190, rowH:34, padX:70, padY:44};
-const svg = document.getElementById('tree');
-const NS = 'http://www.w3.org/2000/svg';
-const el = (n,a={}) => { const e=document.createElementNS(NS,n);
-  for(const k in a) e.setAttribute(k,a[k]); return e; };
+const board = document.getElementById('board');
+const shape = {};
+const gens = [...new Set(DATA.nodes.map(n => n.gen))].sort((a,b) => a-b);
 
-// ---- layout: one column per generation, children stacked ----
-const gens = [...new Set(DATA.nodes.map(n=>n.gen))].sort((a,b)=>a-b);
-const byGen = g => DATA.nodes.filter(n=>n.gen===g);
-const pos = {};
-gens.forEach(g=>{
-  const col = byGen(g);
-  const h = (col.length-1)*S.rowH;
-  col.forEach((n,i)=>{
-    pos[n.id] = { x:S.padX + gens.indexOf(g)*S.colW,
-                  y:S.padY + 150 - h/2 + i*S.rowH };
+gens.forEach(g => {
+  const sec = document.createElement('div');
+  sec.className = 'gen';
+  const nodes = DATA.nodes.filter(n => n.gen === g);
+  const solved = nodes.filter(n => n.state === 'pass').length;
+  sec.innerHTML = `<h3>${g === 0 ? 'Prepared checkpoint'
+    : `Generation ${g} — <b>${nodes.length}</b> forks of one state`
+      + (solved ? ` · <b>${solved} green</b>` : '')}</h3>`;
+  const holder = document.createElement('div');
+  holder.className = 'rows';
+  holder.id = 'gen' + g;
+  sec.appendChild(holder);
+  board.appendChild(sec);
+
+  nodes.forEach(n => {
+    const r = document.createElement('div');
+    r.className = 'row ' + n.state;
+    r.innerHTML = `<span class="dot"></span><span class="rid"></span>`
+      + `<span class="rtests"></span><span class="rscore"></span><span class="rsecs"></span>`;
+    r.querySelector('.rid').textContent = n.state === 'root' ? 'baseline' : n.id;
+    r.querySelector('.rtests').textContent =
+      (n.label || '') + (n.state === 'pass' ? '  suite green' : '');
+    r.querySelector('.rscore').textContent =
+      n.score == null ? '' : (n.score > 0 ? '+' : '') + Number(n.score).toFixed(2);
+    r.querySelector('.rsecs').textContent = n.seconds ? n.seconds + 's' : '';
+    holder.appendChild(r);
+    shape[n.id] = { node: r };
   });
 });
-const maxY = Math.max(...Object.values(pos).map(p=>p.y), 260);
-svg.setAttribute('height', maxY + 70);
-svg.setAttribute('width', S.padX + gens.length*S.colW + 90);
 
-gens.forEach(g=>{
-  const t = el('text',{x:S.padX + gens.indexOf(g)*S.colW, y:20,
-                       'text-anchor':'middle', class:'genlbl'});
-  t.textContent = g===0 ? 'BASE' : 'GEN '+g;
-  svg.appendChild(t);
-});
-
-const gEdge = el('g'), gNode = el('g');
-svg.append(gEdge, gNode);
-const shape = {};
-
-DATA.edges.forEach(e=>{
-  const a=pos[e.from], b=pos[e.to];
-  if(!a||!b) return;
-  const p = el('path',{d:`M${a.x+S.r} ${a.y} C${a.x+S.colW/2} ${a.y}, ${b.x-S.colW/2} ${b.y}, ${b.x-S.r} ${b.y}`,
-                       fill:'none', stroke:'var(--rule)', 'stroke-width':1.4, opacity:0});
-  gEdge.appendChild(p); (shape[e.to] ||= {}).edge = p;
-});
-
-DATA.nodes.forEach(n=>{
-  const p = pos[n.id]; if(!p) return;
-  const g = el('g',{class:'node', opacity:0});
-  const fill = n.state==='pass' ? 'var(--pass-dim)'
-             : n.state==='fail' ? 'var(--fail-dim)' : 'var(--accent-dim)';
-  const line = n.state==='pass' ? 'var(--pass)'
-             : n.state==='fail' ? 'var(--fail)' : 'var(--accent)';
-  g.appendChild(el('circle',{cx:p.x, cy:p.y, r:n.state==='root'?S.r+3:S.r,
-                             fill, stroke:line, 'stroke-width':n.state==='pass'?2.4:1.5}));
-  const lab = el('text',{x:p.x, y:p.y+3.5, 'text-anchor':'middle', class:'lbl',
-                         fill:line, style:'font-size:9px;font-weight:600'});
-  lab.textContent = n.state==='pass' ? '✓' : n.state==='root' ? 'env' : '';
-  g.appendChild(lab);
-  const meta = el('text',{x:p.x, y:p.y+S.r+11, 'text-anchor':'middle', class:'lbl'});
-  meta.textContent = n.label || '';
-  g.appendChild(meta);
-  gNode.appendChild(g); (shape[n.id] ||= {}).node = g;
-});
+function addGhost(gen, why) {
+  const holder = document.getElementById('gen' + gen) || board.lastChild;
+  const d = document.createElement('div');
+  d.className = 'ghost on';
+  d.innerHTML = `<span class="x">✕</span><span class="w"></span>`;
+  d.querySelector('.w').textContent = why;
+  holder.prepend(d);
+}
 
 // ---- replay ----
 const feed = document.getElementById('feed');
@@ -190,10 +195,8 @@ function say(t, msg, cls, tag){
 function reset(){
   idx=0; Object.assign(st,{branches:0,solved:0,applied:0,rejected:0,cost:0});
   feed.innerHTML=''; paint();
-  Object.values(shape).forEach(s=>{
-    if(s.node) s.node.setAttribute('opacity',0);
-    if(s.edge) s.edge.setAttribute('opacity',0);
-  });
+  document.querySelectorAll('.row').forEach(r => r.classList.remove('on'));
+  document.querySelectorAll('.ghost').forEach(g => g.remove());
   document.getElementById('scrub').value = 0;
   document.getElementById('clock').textContent = '0.0s';
 }
@@ -202,8 +205,7 @@ function step(){
   const f = frames[idx++];
   if(f.type==='node'){
     const s = shape[f.id];
-    if(s){ if(s.edge) s.edge.setAttribute('opacity',1);
-           if(s.node) s.node.setAttribute('opacity',1); }
+    if(s && s.node) s.node.classList.add('on');
     const n = DATA.nodes.find(x=>x.id===f.id);
     if(n && n.state!=='root'){
       st.branches++;
@@ -216,6 +218,7 @@ function step(){
     say(f.t, `generation ${f.gen}: asked ${f.asked}, applied ${f.applied}`
       + `, rejected ${f.rejected}` + (f.repaired?`, repaired ${f.repaired}`:''), 'acc', 'gen');
   } else if(f.type==='rejected'){
+    addGhost(1, f.reason + '  — rejected before forking, no container spent');
     say(f.t, `rejected before forking — ${f.reason}`, 'note');
   } else if(f.type==='prune'){
     say(f.t, `pruned ${f.discarded}, kept ${f.kept} for the next generation`, 'acc', 'prune');

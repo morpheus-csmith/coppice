@@ -110,3 +110,19 @@ providers must hand-map every tier and will get a 404 on two of three.
 **Suggested fix:** normalise to one convention, or publish aliases so a single
 lowercase id resolves everywhere. This is a small thing that costs every
 integrator the same twenty minutes.
+
+## 9. Model pricing is hard to find from the API side
+
+Building a cost ledger meant estimating Nano and Super prices for most of a
+day because there is no programmatic way to get them: `/v1/models` returns
+ids and nothing else, and the pricing page is not machine-readable. Our Nano
+estimate was 40% too high, so every cost figure carried an asterisk until we
+found a third-party listing.
+
+**Suggested fix:** include price-per-token in the `/v1/models` response, the
+way some providers do. Any agent that routes across tiers by cost needs this
+at runtime, and a secondary source is a poor substitute when the numbers end
+up in a published benchmark.
+
+Related: `ContreeResult.cost` on the Sandboxes side is exactly right — real
+spend, per operation, no estimation. The inference API should do the same.
