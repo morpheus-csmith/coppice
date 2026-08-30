@@ -1,0 +1,41 @@
+To: contree@nebius.com
+Subject: Sandboxes 403 on a new Token Factory project (hackathon participant)
+
+Hi,
+
+I'm building for the Nebius x NVIDIA Global AI Hackathon, in the Coding &
+Agentic Engineering track. My project depends on Sandboxes' branching
+specifically - it forks one prepared checkpoint into many parallel repair
+attempts - so I'd rather solve this than route around it.
+
+Two questions.
+
+1. Sandboxes returns 403 on a project where inference works fine.
+
+   GET https://api.tokenfactory.nebius.com/sandboxes/v1/inspect/?tag=python:3.12
+   -> 403 "You do not have permission to perform this action"
+
+   Project:      aiproject-e00pty4kbqs95s30kj
+   x-request-id: 58bb1d784337cba8f8b3258ff36990bb
+
+   The Project header is being sent - I got 400 "Missing Project header"
+   before adding it, and 403 after, so credentials look complete. Chat
+   completions on the same API key succeed. Does Sandboxes need to be
+   enabled separately on an account or project during beta? The overview
+   page documents a quick start but doesn't mention an access step, so I
+   couldn't tell whether this is expected.
+
+2. A third-party listing shows the Nemotron 3 models as "scheduled for
+   deactivation 2026-08-31". Is that accurate for Token Factory? My
+   submission runs on Nemotron 3 Super through the October 30 deadline,
+   so I'd like to know before I build further on it.
+
+Unrelated to the above: I've been keeping notes on ConTree SDK friction
+as I hit it - the disposable=True default silently breaking the branching
+workflow, run() reading as eager when it's a builder, and a few smaller
+things. Happy to send that over if it's useful; the per-run cost field on
+ContreeResult is genuinely excellent and I'd like to say so somewhere you
+will see it.
+
+Thanks,
+Chris Smith
