@@ -149,13 +149,20 @@ async def _expand(
     # for two or three blocks and cuts generation time roughly 3x.
     budget = 12000 if th else 900
 
+    call_errors: list[str] = []
+
     async def batch(n: int, temperature: float):
         if n <= 0:
             return []
         try:
             return await router.sample(t, prompt, n=n, system=SYSTEM, think=th,
                                        temperature=temperature, max_tokens=budget)
-        except Exception:
+        except Exception as e:
+            # Swallowing this produced a run logged as "asked 16, applied 0,
+            # rejected 0" -- zero branches and no reason anywhere. A failed
+            # call must be visible or the log lies about what happened.
+            call_errors.append(f"batch(n={n}, t={temperature}): "
+                               f"{type(e).__name__}: {str(e)[:120]}")
             return []
 
     # Spread across a few batches rather than one hot one.
@@ -173,7 +180,7 @@ async def _expand(
     replies = [r for group in results for r in group]
 
     applied: list[str] = []
-    reasons: list[str] = []
+    reasons: list[str] = list(call_errors)
     failures: list[tuple[str, str]] = []
 
     for r in replies:
