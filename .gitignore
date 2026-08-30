@@ -6,3 +6,5 @@ __pycache__/
 runs/
 *.egg-info/
 .coppice_cache/
+
+# scratch runs are ignored; shipped artefacts live in results/

@@ -1,0 +1,82 @@
+[
+  {
+    "instance": "pylint-dev__pylint-7993",
+    "asked": 16,
+    "applied": 0,
+    "solved": 0,
+    "cost": 0,
+    "seconds": 158.20612082300067
+  },
+  {
+    "instance": "pylint-dev__pylint-5859",
+    "asked": 16,
+    "applied": 16,
+    "solved": 1,
+    "cost": 0.0220596,
+    "seconds": 404.0256852409984
+  },
+  {
+    "instance": "pylint-dev__pylint-7228",
+    "asked": 16,
+    "applied": 16,
+    "solved": 1,
+    "cost": 0.028864200000000007,
+    "seconds": 77.2616953120014
+  },
+  {
+    "instance": "pylint-dev__pylint-6506",
+    "asked": 16,
+    "applied": 16,
+    "solved": 0,
+    "cost": 0.0130014,
+    "seconds": 54.9035774820004
+  },
+  {
+    "instance": "astropy__astropy-14365",
+    "asked": 16,
+    "applied": 13,
+    "solved": 0,
+    "cost": 0.04461029999999999,
+    "seconds": 102.51975724099975
+  },
+  {
+    "instance": "astropy__astropy-14182",
+    "asked": 16,
+    "applied": 12,
+    "solved": 0,
+    "cost": 0.0275187,
+    "seconds": 134.81757322699923
+  },
+  {
+    "instance": "astropy__astropy-12907",
+    "asked": 16,
+    "applied": 11,
+    "solved": 3,
+    "cost": 0.0350616,
+    "seconds": 146.3141233219976
+  },
+  {
+    "instance": "mwaskom__seaborn-3010",
+    "asked": 16,
+    "applied": 11,
+    "solved": 11,
+    "cost": 0.04293960000000002,
+    "seconds": 96.91473697200126
+  },
+  {
+    "instance": "pydata__xarray-4248",
+    "asked": 16,
+    "applied": 15,
+    "solved": 7,
+    "cost": 0.058332599999999984,
+    "seconds": 575.2665162260018
+  },
+  {
+    "instance": "pallets__flask-4992",
+    "asked": 16,
+    "applied": 15,
+    "solved": 0,
+    "cost": 0.029047800000000012,
+    "seconds": 68.69150263600022
+  }
+]

@@ -34,7 +34,8 @@ Nemotron 3 Super on Nebius Token Factory:
 
 The curve is computed by exact subsampling over the samples actually drawn
 (`bench/analyze.py`), not modelled from an assumed independence between
-candidates. Reproduce it with `python bench/width_curve.py --samples 16`.
+candidates. Reproduce it with `python bench/width_curve.py --samples 16`. The run behind the table
+above is committed at `results/width-curve-nebius.json`.
 
 **Green means the repository's own test suite passed** — the tests its
 maintainers wrote went from failing to passing with nothing else broken. Not
@@ -118,13 +119,13 @@ COPPICE_PROVIDER=nebius python -m coppice.search \
 
 ```bash
 COPPICE_MAX_SPEND=6 COPPICE_PROVIDER=nebius python bench/width_curve.py --samples 16
-python bench/analyze.py
+python bench/analyze.py results/width-curve-nebius.json
 ```
 
 **Replay any run as the search tree:**
 
 ```bash
-python viz/build_replay.py runs/demo-pylint7993.jsonl -o viz/replay.html
+python viz/build_replay.py results/demo-pylint7993.jsonl -o viz/replay.html
 ```
 
 Spend is capped by `COPPICE_MAX_SPEND` (default $3) and raises `BudgetExceeded`
