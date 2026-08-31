@@ -126,3 +126,37 @@ up in a published benchmark.
 
 Related: `ContreeResult.cost` on the Sandboxes side is exactly right — real
 spend, per operation, no estimation. The inference API should do the same.
+
+## 10. Timeouts are reported through the result, not the documented exception
+
+`ImageLike.run(timeout=...)` is honoured correctly — a `sleep 30` with
+`timeout=3` returns at ~3.5s. But it comes back as a normal result carrying
+`exit_code = -1`, rather than raising `OperationTimedOutError`, which the SDK
+defines and which the exception taxonomy strongly implies is the timeout
+signal.
+
+Our conformance suite caught this immediately (17/18 on first contact with the
+real API), but only because we were testing for it. A caller who handles
+`OperationTimedOutError` and trusts `exit_code` otherwise will silently treat a
+timed-out branch as a legitimate failure — which, for a search that scores
+branches, means a runaway operation is scored as evidence rather than discarded.
+
+A negative exit code is also ambiguous on its own: any signal kill looks the
+same. We disambiguate by requiring `exit_code < 0` *and* elapsed >= 90% of the
+requested timeout, which works but is a heuristic over something the API knows
+exactly.
+
+**Suggested fix:** raise `OperationTimedOutError`, or add an explicit
+`timed_out` boolean to `ContreeResult` alongside `exit_code` and `cost`.
+
+---
+
+## Correction to §7
+
+Nebius replied within hours: Sandboxes beta **can** be activated from the
+Sandboxes page in Token Factory, and they enabled it for our account directly.
+So the path exists and we failed to find it. The feedback stands in narrower
+form: the 403 response names no remedy, and the Sandboxes overview page
+documents a six-step quick start without mentioning that activation is a
+prerequisite. A developer hitting that error has no way to learn either fact
+from the error or the docs.

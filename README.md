@@ -76,13 +76,26 @@ reasoning** — see `docs/findings-05-tier-selection.md`.
   output tokens ~25x on generation roles, where reasoning traces are billed and
   then discarded (`docs/findings-02-reasoning-cost.md`).
 
-**Token Factory Sandboxes** is implemented in
-`src/coppice/executor/contree_exec.py` and is the intended executor: ConTree
-versions the filesystem after every command, so forking is `run()` called twice
-on the same state. **It is not yet validated** — every Sandboxes call on this
-account returns `403 "You do not have permission to perform this action"` while
-inference on the same key succeeds. All results above therefore use the Docker
-fallback executor. See `docs/nebius-feedback.md` §7.
+**Token Factory Sandboxes** is the executor. ConTree versions the filesystem
+after every command, so forking is `run()` called twice on the same state — no
+snapshot management, no teardown. Validated by the full conformance suite
+(**18/18 across both backends**), including fork isolation, which the soundness
+of beam search depends on.
+
+Measured against the Docker fallback on the same instance, same width, same
+model:
+
+| | Docker (local) | Token Factory Sandboxes |
+|---|---|---|
+| setup command | 17.2s | **1.7s** |
+| per-branch execution | 66.2s | **4.0–4.6s** |
+| 12 concurrent branches, wall-clock | ~53s | **4.6s** |
+
+**~15x faster per branch, with no concurrency penalty** — the twelve branches
+finished within 600ms of each other. Docker's identical 66.2s per branch was
+containers queueing for RAM, not work. The Docker executor also segfaulted
+twice under width-16 concurrency; Sandboxes ran clean. See
+`docs/findings-06-sandboxes-validated.md`.
 
 ---
 
@@ -172,9 +185,9 @@ and nothing looks broken.
   full-suite guarantee.
 - **Single-file patches only.** SWE-bench Lite happens to be single-file
   throughout, so this costs nothing there, but it is a real limit on generality.
-- **Sandboxes unvalidated** (403, above). The Docker executor is an honest
-  baseline, not a strawman — it uses `docker commit` as a checkpoint, which is
-  what a competent engineer would build without ConTree.
+- **The width curve was measured on Docker**, before Sandboxes access was
+  granted. Solve rates should be identical (same model, same prompts), but the
+  wall-clock and concurrency figures in findings-04 understate Sandboxes.
 - **Width helps in a band.** It does nothing for instances the model already
   solves reliably, and nothing for instances out of reach. See
   `docs/findings-04-width-curve.md`.
@@ -190,7 +203,8 @@ Written as encountered, including the wrong turns:
 | `findings-03-width-works.md` | Why 0/3 at width 1 was sampling noise, not a capability ceiling |
 | `findings-04-width-curve.md` | The curve, decomposed into three regimes |
 | `findings-05-tier-selection.md` | Nano and Ultra both fail, for opposite reasons |
-| `nebius-feedback.md` | Nine concrete points of API friction, and what worked |
+| `findings-06-sandboxes-validated.md` | Sandboxes vs Docker: 15x per branch, no concurrency penalty |
+| `nebius-feedback.md` | Ten concrete points of API friction, and what worked |
 
 ## License
 

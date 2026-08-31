@@ -116,12 +116,23 @@ class ContreeState:
             stdout, stderr = _text(getattr(done, "stdout", "")), _text(getattr(done, "stderr", ""))
             exit_code, cost = getattr(done, "exit_code", 0), None
 
+        elapsed = time.perf_counter() - t0
+
+        # ConTree enforces the timeout but reports it through the RESULT, not
+        # by raising OperationTimedOutError: the operation comes back with a
+        # negative exit code at roughly the deadline. A negative code alone is
+        # ambiguous (any signal kill looks the same), so require both.
+        if exit_code is not None and exit_code < 0 and elapsed >= timeout_s * 0.9:
+            timed_out = True
+            if not stderr:
+                stderr = f"operation timed out after {timeout_s}s"
+
         return ExecResult(
             state=ContreeState(self._ex, done, self.depth + 1),
             stdout=stdout,
             stderr=stderr,
-            exit_code=exit_code,
-            duration_s=time.perf_counter() - t0,
+            exit_code=124 if timed_out else exit_code,
+            duration_s=elapsed,
             timed_out=timed_out,
             cost=cost,
         )

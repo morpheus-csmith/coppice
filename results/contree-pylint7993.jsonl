@@ -1,0 +1,22 @@
+{"t": 0.005, "kind": "run.start", "task": "pylint-dev__pylint-7993", "width": 16, "beam": 1, "depth": 1, "backend": "contree", "provider": "nebius"}
+{"t": 123.823, "kind": "setup.done", "seconds": 1.7}
+{"t": 128.533, "kind": "baseline", "outcome": "10P/1F/0E", "green": false}
+{"t": 128.534, "kind": "gen.start", "gen": 1, "frontier": 1}
+{"t": 143.731, "kind": "proposal.rejected", "gen": 1, "parent": "0c96053a", "reason": "patch is a no-op (after repair)"}
+{"t": 143.733, "kind": "proposal.rejected", "gen": 1, "parent": "0c96053a", "reason": "patch is a no-op (after repair)"}
+{"t": 143.735, "kind": "proposal.rejected", "gen": 1, "parent": "0c96053a", "reason": "block 1: SEARCH not found: '# Return early if the template is the same as the previous one"}
+{"t": 143.736, "kind": "proposal.rejected", "gen": 1, "parent": "0c96053a", "reason": "patch is a no-op (after repair)"}
+{"t": 143.737, "kind": "propose", "gen": 1, "parent": "0c96053a", "asked": 16, "applied": 12, "rejected": 4, "repaired": 3}
+{"t": 148.306, "kind": "branch", "gen": 1, "id": "246f808a", "parent": "0c96053a", "verdict": "fail", "score": -0.0, "tests": "10P/1F/0E", "seconds": 4.2}
+{"t": 148.311, "kind": "branch", "gen": 1, "id": "d920a945", "parent": "0c96053a", "verdict": "fail", "score": -0.02, "tests": "10P/1F/0E", "seconds": 4.5}
+{"t": 148.312, "kind": "branch", "gen": 1, "id": "02f5a022", "parent": "0c96053a", "verdict": "fail", "score": -0.01, "tests": "10P/1F/0E", "seconds": 4.5}
+{"t": 148.315, "kind": "branch", "gen": 1, "id": "77674150", "parent": "0c96053a", "verdict": "PASS", "score": 0.98, "tests": "11P/0F/0E", "seconds": 4.5}
+{"t": 148.322, "kind": "branch", "gen": 1, "id": "40de9526", "parent": "0c96053a", "verdict": "fail", "score": -4.51, "tests": "7P/4F/0E", "seconds": 4.6}
+{"t": 148.323, "kind": "branch", "gen": 1, "id": "fa96258b", "parent": "0c96053a", "verdict": "fail", "score": -9.02, "tests": "4P/7F/0E", "seconds": 4.0}
+{"t": 148.324, "kind": "branch", "gen": 1, "id": "19f3dbf3", "parent": "0c96053a", "verdict": "fail", "score": -0.04, "tests": "10P/1F/0E", "seconds": 4.2}
+{"t": 148.325, "kind": "branch", "gen": 1, "id": "f0423c5f", "parent": "0c96053a", "verdict": "PASS", "score": 0.98, "tests": "11P/0F/0E", "seconds": 4.4}
+{"t": 148.325, "kind": "branch", "gen": 1, "id": "4831d7a5", "parent": "0c96053a", "verdict": "fail", "score": -0.0, "tests": "10P/1F/0E", "seconds": 4.2}
+{"t": 148.326, "kind": "branch", "gen": 1, "id": "32464acc", "parent": "0c96053a", "verdict": "fail", "score": -0.0, "tests": "10P/1F/0E", "seconds": 4.0}
+{"t": 148.327, "kind": "branch", "gen": 1, "id": "ffc98100", "parent": "0c96053a", "verdict": "PASS", "score": 0.98, "tests": "11P/0F/0E", "seconds": 4.2}
+{"t": 148.327, "kind": "branch", "gen": 1, "id": "920d8431", "parent": "0c96053a", "verdict": "fail", "score": -0.01, "tests": "10P/1F/0E", "seconds": 4.5}
+{"t": 148.328, "kind": "solved", "gen": 1, "id": "77674150", "solved_branches": 3, "of_candidates": 12, "branches_run": 12, "cost": 0.0418}
