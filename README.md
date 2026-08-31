@@ -219,9 +219,15 @@ and nothing looks broken.
 ## Tests
 
 ```bash
-pytest tests/test_patcher.py              # 25 tests, no container, no network
-pytest tests/test_executor_conformance.py # 18 tests, both backends
+pytest tests/                             # 43 tests, ~4 min
 ```
+
+- `test_patcher.py` — 25 tests, no container, no network, instant.
+- `test_executor_conformance.py` — 9 tests run against **each** backend. Both
+  run by default; the ConTree half is *skipped*, not failed, without a
+  `NEBIUS_API_KEY`, so a keyless checkout reports **34 passed, 9 skipped** and
+  a configured one reports **43 passed**. Narrow with
+  `COPPICE_BACKENDS=docker pytest tests/` if you have no Docker daemon.
 
 The conformance suite is the load-bearing one: every executor backend must pass
 it before any score it produces is trusted. `test_fork_isolation` is why — if

@@ -37,7 +37,11 @@ NASTY = (
 
 
 def _backends():
-    names = os.environ.get("COPPICE_BACKENDS", "docker").split(",")
+    # Both backends by default, so that `pytest tests/` reproduces the
+    # "18/18 across both backends" claim in the README rather than a
+    # docker-only subset of it. contree is skipped (not failed) without a
+    # key; narrow with COPPICE_BACKENDS=docker if you have no Docker daemon.
+    names = os.environ.get("COPPICE_BACKENDS", "docker,contree").split(",")
     out = []
     for n in [x.strip() for x in names if x.strip()]:
         if n == "docker":
