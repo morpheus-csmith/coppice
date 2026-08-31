@@ -58,9 +58,11 @@ branches appearing pass in silence.
 **Screen:** launch a real run against Token Factory Sandboxes:
 ```
 COPPICE_PROVIDER=nebius python -m coppice.search --backend contree \
-  --task pylint-dev__pylint-7993 --width 4 --beam 1 --depth 1 --propose-tier super
+  --task pylint-dev__pylint-7993 --width 12 --beam 1 --depth 1 --propose-tier super
 ```
-Warm, this finishes while you're talking. Let it.
+Width **12**, not 4 — the narration says "twelve run at once", so the screen
+should show twelve. Warm on Sandboxes this finishes in ~30s, while you are
+still talking. Let it. Costs about $0.04 per take.
 
 > Coppice prepares one checkpoint, then forks *that state* for every attempt.
 > Nothing is rebuilt.
