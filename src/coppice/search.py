@@ -399,10 +399,22 @@ async def search(
                 child = Node(r.state, content, outcome,
                              r.stdout + r.stderr, s.value,
                              parent=parent.id, depth=gen)
+                # Winning patches are logged as a diff so a claim like
+                # "the two winners were different from each other" is
+                # checkable against committed data rather than taken on
+                # trust. Only solved branches: the losers would bloat the
+                # log by two orders of magnitude and nothing reads them.
+                extra = {}
+                if s.solved:
+                    extra["diff"] = "\n".join(difflib.unified_diff(
+                        parent.content.splitlines(), content.splitlines(),
+                        fromfile="a" + task.target, tofile="b" + task.target,
+                        lineterm="", n=3))
+
                 log.emit("branch", gen=gen, id=child.id, parent=parent.id,
                          verdict="PASS" if s.solved else "fail",
                          score=round(s.value, 2), tests=str(outcome),
-                         seconds=round(r.duration_s, 1))
+                         seconds=round(r.duration_s, 1), **extra)
 
                 if s.solved:
                     solved_here.append((s.value, child))

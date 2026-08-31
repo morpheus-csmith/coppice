@@ -4,9 +4,10 @@ Coding agents mostly fail the same way: they try once. A model proposes a fix,
 it doesn't work, and the run is over. But the failure isn't usually that the
 model *can't* solve the problem — it's that it doesn't solve it *this time*.
 
-We measured that. NVIDIA Nemotron 3 Super fixes a given SWE-bench bug about
-**16% of the time**. One attempt fails five times in six. Sixteen attempts, and
-one of them is almost certainly right.
+We measured that. On the bugs in our benchmark, NVIDIA Nemotron 3 Super
+succeeds on **11–16% of attempts** — and on the six instances where it has a
+real shot, **19%**. One try fails four times in five. Sixteen tries, and one of
+them is almost certainly right.
 
 The reason nobody just does sixteen attempts is that each one normally means
 rebuilding the environment — clone, install, configure — before you can even
@@ -75,6 +76,14 @@ effect where it exists while implying one where it doesn't.
 The curve is computed by exact subsampling over samples actually drawn, not
 modelled from an assumed independence between candidates. Every number is
 reproducible from the committed data.
+
+**What this is not.** These are 10 instances from 4 small repositories, chosen
+for small target files and short regression suites so a width-16 sweep was
+affordable. **This is not a SWE-bench Lite score and must not be read as one.**
+A solve means the failing tests pass and 40 sampled regression tests still
+pass, not the entire suite. The effect we are claiming — that breadth converts
+an unreliable model into a reliable one within a measurable band — is real and
+measured twice. The absolute numbers are not comparable to a leaderboard.
 
 ## How we built it
 
@@ -151,11 +160,24 @@ call and zero container time. In the final benchmark, 21 of 160 proposals were
 discarded for free. That single design decision is what turns "try sixteen
 things" from expensive into routine.
 
-**The two winning patches were different from each other.** On the same bug,
-one escaped brace literals before parsing the template; the other routed the
-format call through a defaulting dictionary. Different reasoning, both correct,
-both verified. Width bought genuine diversity — not sixteen copies of one idea,
-which is the failure mode we were most worried about.
+**The winning patches are different from each other — but less different than
+we first claimed.** On pylint-7993, three of twelve branches turned the suite
+green, and all three are committed as diffs in
+`results/contree-pylint7993.jsonl` so this is checkable rather than asserted.
+All three rewrote the same regex; they differ in how:
+
+```
+re.findall(r"\{\{(.*?)\}\}|\{(.+?)(:.*)?\}", template)
+re.findall(r"\{\{(.+?)(:.*)?\}\}|(\{(.+?)(:.*)?\})", template)
+re.findall(r"{{|}}|\{([^}]+?)(:.*)?\}", template)   # + a separate filter pass
+```
+
+Three implementations, one insight. We had written this up as "genuinely
+different reasoning" from an earlier run whose patches we had not committed —
+then we made the winners loggable, looked, and found the honest version is
+narrower. Width buys *implementation* diversity reliably; whether it buys
+*insight* diversity is a separate question we have not measured, and the two
+should not be conflated. That distinction is now the top item in what's next.
 
 **$0.29 for the entire benchmark.** Ten instances, 160 proposals, 139 sandboxed
 test runs — three cents an instance. Batched `n` sampling on Token Factory and
@@ -167,9 +189,11 @@ pointed at new backends for a sixty-second verdict. The load-bearing one checks
 fork isolation — the failure it guards against would corrupt every score in the
 project while looking completely normal.
 
-**We published the wrong turns.** Five findings documents record what we
-measured *including* three occasions where a measurement artifact nearly became
-a published claim. The harness now asserts against its own worst failure mode.
+**We published the wrong turns.** Seven findings documents record what we
+measured *including* four occasions where a measurement artifact nearly became
+a published claim — the fourth being a diversity claim in this very document,
+which we caught only by making the winning patches loggable and then looking at
+them. The harness now asserts against its own worst failure mode.
 That's the part we'd want another engineer to read.
 
 ## What we learned
@@ -195,11 +219,20 @@ ship under is not evidence, however clean it looks.** The harness now asserts
 that any zero-cost row is missing data rather than a failure to solve.
 
 All of this is written up as it happened — including the wrong turns — in
-`docs/findings-01` through `findings-05`.
+`docs/findings-01` through `findings-07`.
 
 ## What's next
 
+- **Measure insight diversity, not just patch diversity.** Our three winners
+  were three implementations of one idea. Whether width ever finds two
+  genuinely different *approaches* is the more interesting question and we
+  cannot yet answer it.
 - **Full-suite verification.** A solve currently means 40 sampled regression
   tests passed. The winning patch should face the whole suite.
 - **Attack the remaining 13% patcher tax**, which is width we already paid for.
+- **Line-anchor the matcher.** SEARCH strings are matched as substrings, so one
+  can match mid-token and apply cleanly while corrupting an identifier. We
+  found it writing the unit tests, asserted it rather than quietly fixing it —
+  changing the matcher changes the apply rate, and 87% was measured against
+  this one.
 - **Live streaming UI**, not just replay.

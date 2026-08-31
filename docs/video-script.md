@@ -16,7 +16,7 @@ first:
 
 | # | Window | Prepare it with |
 |---|---|---|
-| A | Browser — replay page, scrubbed to 0 | `python viz/build_replay.py results/contree-pylint7993.jsonl -o viz/replay.html` then open it. This is the Sandboxes run — 13 branches, 3 green |
+| A | Browser — replay page, scrubbed to 0 | `python viz/build_replay.py results/contree-pylint7993.jsonl -o viz/replay.html` then open it. This is the Sandboxes run — 12 branches, 3 green, 4 rejected free |
 | B | Terminal — results table already printed | `python bench/analyze.py results/width-curve-sandboxes.json` |
 | C | Terminal — a short live run, ready to launch | type the command, **don't press enter** (see 0:45). Do one throwaway run first so the image is cached — cold, it pays a ~2 min one-time OCI import |
 | D | Editor — `src/coppice/models.py` scrolled to the `ROLES` table | |
@@ -39,19 +39,19 @@ branches appearing pass in silence.
 
 > *(silence, 3 seconds)*
 >
-> This agent is fixing one bug thirteen different ways at the same time — and
-> it only paid to set up the repository once.
+> This agent is fixing one bug twelve different ways at the same time — and it
+> only paid to set up the repository once.
 >
-> Three of those thirteen turn the test suite green. That's the whole idea.
+> Three of those twelve turn the test suite green. That's the whole idea.
 
 ## 0:18 – 0:45 · The problem  [Scene A, let replay finish]
 
-> NVIDIA Nemotron 3 Super fixes a given SWE-bench bug about sixteen percent of
-> the time. One attempt fails five times in six.
+> On the bugs in this benchmark, NVIDIA Nemotron 3 Super succeeds less than one
+> attempt in five. Most agents try once, fail, and stop — not because the model
+> can't solve it, but because it didn't solve it *that* time.
 >
-> Most agents try once, fail, and stop — not because the model can't solve
-> it, but because it didn't solve it *that* time. Nobody tries sixteen times
-> because every attempt normally means rebuilding the environment first.
+> Nobody tries sixteen times, because every attempt normally means rebuilding
+> the environment first.
 
 ## 0:45 – 1:20 · The run  [Scene C — press enter now]
 
@@ -66,10 +66,10 @@ Warm, this finishes while you're talking. Let it.
 > Nothing is rebuilt.
 >
 > Those forks are Token Factory Sandboxes. It versions the filesystem after
-> every command, so a branch costs four seconds instead of sixty-six — and
-> twelve of them run at once without slowing each other down.
+> every command, so a branch costs four seconds instead of sixty-six, and
+> twelve run at once without slowing each other down.
 >
-> Every patch is judged by the repository's own test suite — not by a model
+> Every patch is judged by the repository's own test suite, not by a model
 > grading its own work. And patches that don't apply are rejected before
 > anything forks, so a bad idea costs nothing.
 
@@ -105,25 +105,28 @@ Warm, this finishes while you're talking. Let it.
 > curves agree within one point at every width.
 >
 > Four of the ten never solve at all. Width can't manufacture a capability the
-> model doesn't have — so we report that separately. Averaging it in would hide
-> where this actually works.
+> model doesn't have, so we report those separately — averaging them in would
+> hide where this works.
 
 ## 2:25 – 2:45 · The proof  [Scene A — scroll to the winning row]
 
-**Screen:** the green row in the replay, then the winning patch.
+**Screen:** click a green row in the replay — it expands to the winning diff.
+Click a second green row so both are open and visibly different. Rehearse this;
+it is the one interaction in the video.
 
-> Three green branches. Real code, the repository's own test suite, verified.
+> Three green branches. Real code, the repository's own test suite, verified —
+> and every winning patch is committed, so you can check this.
 >
-> And they aren't the same patch. One escaped the brace literals before
-> parsing the template; another routed the format call through a defaulting
-> dictionary. Breadth bought real diversity, not sixteen copies of one guess.
+> They aren't the same patch. Three different regexes, one with an extra
+> filtering pass. That's what breadth has to buy to be worth anything: not
+> sixteen copies of one guess.
 
 ## 2:45 – 2:55 · Close  [Scene E]
 
 **Screen:** the GitHub repo.
 
-> Coppice. Everything's open source — the benchmark data, and five write-ups
-> including the measurements we got wrong.
+> Coppice. All open source — the benchmark data, the winning patches, and seven
+> write-ups including the measurements we got wrong.
 
 ---
 

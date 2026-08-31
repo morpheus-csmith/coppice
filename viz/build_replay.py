@@ -57,7 +57,7 @@ def build_model(events: list[dict]) -> dict:
             state = "pass" if e.get("verdict") == "PASS" else "fail"
             nodes.append({"id": nid, "gen": gen, "state": state,
                           "label": e.get("tests", ""), "score": e.get("score"),
-                          "seconds": e.get("seconds")})
+                          "seconds": e.get("seconds"), "diff": e.get("diff")})
             edges.append({"from": parent, "to": nid})
             gen_of[nid] = gen
             frames.append({"t": t, "type": "node", "id": nid})

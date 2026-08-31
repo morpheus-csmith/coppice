@@ -48,6 +48,16 @@ h1{font-family:var(--display);font-size:26px;font-weight:700;letter-spacing:-.02
   border-left:3px solid transparent;opacity:0;transform:translateX(-6px);
   transition:opacity .2s ease,transform .2s ease}
 .row:last-child{border-bottom:none}
+.row.haspatch{cursor:pointer}
+.row.haspatch .rid::after{content:' \25B8';color:var(--pass);font-size:10px}
+.row.haspatch.open .rid::after{content:' \25BE'}
+.patch{display:none;margin:0 0 8px 24px;padding:10px 14px;border-left:2px solid var(--pass);
+  background:#0d1512;font-size:11px;line-height:1.55;white-space:pre;overflow-x:auto;
+  color:var(--muted);border-radius:0 4px 4px 0}
+.patch.open{display:block}
+.patch .a{color:var(--fail)}
+.patch .b{color:var(--pass)}
+.patch .h{color:var(--accent)}
 .row.on{opacity:1;transform:none}
 .row.pass{border-left-color:var(--pass);background:var(--pass-dim)}
 .row.fail{border-left-color:var(--fail)}
@@ -156,6 +166,28 @@ gens.forEach(g => {
     r.querySelector('.rsecs').textContent = n.seconds ? n.seconds + 's' : '';
     holder.appendChild(r);
     shape[n.id] = { node: r };
+
+    // A winning branch carries the patch that won. Showing it is the
+    // difference between "trust us, they were different" and a reader
+    // checking for themselves.
+    if (n.diff) {
+      const pre = document.createElement('div');
+      pre.className = 'patch';
+      pre.innerHTML = n.diff.split('\n').map(line => {
+        const esc = line.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+        if (line.startsWith('+++') || line.startsWith('---')) return esc;
+        if (line.startsWith('@@')) return '<span class="h">' + esc + '</span>';
+        if (line.startsWith('+')) return '<span class="b">' + esc + '</span>';
+        if (line.startsWith('-')) return '<span class="a">' + esc + '</span>';
+        return esc;
+      }).join('\n');
+      holder.appendChild(pre);
+      r.classList.add('haspatch');
+      r.addEventListener('click', () => {
+        pre.classList.toggle('open');
+        r.classList.toggle('open');
+      });
+    }
   });
 });
 

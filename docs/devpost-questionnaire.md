@@ -27,10 +27,16 @@ data killed that architecture in an afternoon.
 **7.**
 
 What worked: on real SWE-bench bugs, Super produced *correct* fixes — verified
-by the repository's own test suite, not self-assessment. On one instance it
-found two genuinely different valid patches (one escaping brace literals before
-template parsing, one routing through a defaulting dictionary). That diversity
-is exactly what a breadth-first search needs and it's not guaranteed.
+by the repository's own test suite, not self-assessment. On one instance three
+of twelve branches passed, with three different working implementations of the
+same fix (all committed as diffs in `results/`). That is the diversity a
+breadth-first search needs, and it is not guaranteed — sixteen samples that
+collapse to one answer would make width worthless.
+
+Worth flagging honestly: the diversity we can demonstrate is at the
+implementation level. All three winners rewrote the same regex. We have not
+shown Nemotron producing two genuinely different *approaches* to one bug, and
+we were briefly claiming we had before we started committing the patches.
 
 What fell short: **structured-output compliance, and its variance across
 sizes.** This was the binding constraint on our entire system — not reasoning,

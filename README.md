@@ -14,9 +14,11 @@ Engineering** track.
 
 ## The claim, and the evidence for it
 
-A 120B open model fixes a given SWE-bench bug about **16% of the time**. A
-single-shot agent therefore fails five times in six. Coppice does not make the
-model better; it changes how compute is allocated.
+A 120B open model fixes a given bug in this set **11–16% of the time** — 11.2%
+pooled on the run below, 16.2% on the independent Docker run, and 19% on the
+six instances where it has a real shot at all. A single-shot agent therefore
+fails four or five times in five. Coppice does not make the model better; it
+changes how compute is allocated.
 
 Measured on 10 SWE-bench Lite instances, 16 independent proposals each,
 Nemotron 3 Super on Nebius Token Factory, executed in Token Factory Sandboxes:
@@ -205,9 +207,26 @@ and nothing looks broken.
 - **10 instances is a small sample.** The regime split (6 sweet-spot, 4 out of
   reach) is stable across two independent runs, but confidence intervals on
   any single instance are wide.
-- **Width helps in a band.** It does nothing for instances the model already
-  solves reliably, and nothing for instances out of reach. See
+- **Width helps in a band.** It does nothing for instances out of reach — no
+  amount of breadth manufactures a capability the model lacks. See
   `docs/findings-04-width-curve.md`.
+- **The patcher matches substrings, not lines.** A SEARCH string can match
+  mid-token (`x = 1` inside `max = 1`), applying cleanly while corrupting an
+  identifier. Unobserved in 160 proposals, because models emit whole indented
+  lines — but unguarded, and the ambiguity check does not catch it. Asserted in
+  `tests/test_patcher.py` so a fix has to arrive with a re-measured apply rate.
+
+## Tests
+
+```bash
+pytest tests/test_patcher.py              # 25 tests, no container, no network
+pytest tests/test_executor_conformance.py # 18 tests, both backends
+```
+
+The conformance suite is the load-bearing one: every executor backend must pass
+it before any score it produces is trusted. `test_fork_isolation` is why — if
+two runs from one state can observe each other's writes, branches contaminate
+their siblings and nothing looks broken.
 
 ## Findings
 
@@ -221,6 +240,7 @@ Written as encountered, including the wrong turns:
 | `findings-04-width-curve.md` | The curve, decomposed into three regimes |
 | `findings-05-tier-selection.md` | Nano and Ultra both fail, for opposite reasons |
 | `findings-06-sandboxes-validated.md` | Sandboxes vs Docker: 15x per branch, no concurrency penalty |
+| `findings-07-diversity-claim.md` | A claim survived three documents because nothing could check it |
 | `nebius-feedback.md` | Ten concrete points of API friction, and what worked |
 
 ## License
