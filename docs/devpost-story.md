@@ -38,22 +38,39 @@ reward signal it cannot talk itself into.
 ## Results
 
 10 SWE-bench Lite instances, 16 independent proposals each, Nemotron 3 Super on
-Nebius Token Factory:
+Nebius Token Factory, executed in Token Factory Sandboxes:
 
-| attempts | all 10 instances | the 5 where the model has a real but unreliable shot |
+| attempts | all 10 instances | the 6 where the model has a real but unreliable shot |
 |---:|---|---|
-| 1  | 16% | 19% |
-| 2  | 26% | 33% |
-| 4  | 36% | 53% |
-| 8  | 48% | **76%** |
+| 1  | 11% | 19% |
+| 2  | 20% | 33% |
+| 4  | 32% | 54% |
+| 8  | 46% | **77%** |
 | 16 | 60% | **100%** |
 
-**6 of 10 solved, $0.33 for the whole sweep.** Three cents an instance.
+**6 of 10 solved, $0.29 for the whole sweep.** Three cents an instance —
+160 proposals, 139 applied, each verified against the repository's own tests.
 
-The second column is the honest one. Width does nothing for the instance the
-model already solves reliably, and nothing for the four it never solves. The
-value is concentrated in a band — problems the model can *nearly* do — and
-that band is where real agent work lives.
+**The curve replicates.** We ran the identical benchmark twice on two different
+executors, with fresh stochastic draws each time. The sweet-spot row came out
+19 / 33 / 53 / 76 / 100 on Docker and 19 / 33 / 54 / 77 / 100 on Sandboxes —
+within one point at every width, apply rate 87% on both, 6 of 10 solved on
+both. The executor cannot change whether a patch is correct, so agreement was
+the prediction; getting it checks the whole measurement chain at once — the
+patcher, the scorer, the subsampling estimator, and both backends.
+
+What the executor *does* change is what width costs. Per branch: **66.2s on
+Docker, 4.4s on Sandboxes**. Twelve concurrent branches finish within 600
+milliseconds of each other on Sandboxes; on Docker all twelve take 66.2s
+because they are queueing, not working. Warm, a full 16-proposal instance
+completes in about **30 seconds** against Docker's ~240.
+
+The second column is the honest one. Four of the ten instances never solve
+once in sixteen tries, and width does nothing for them — no amount of breadth
+manufactures a capability the model lacks. The value is concentrated in the
+other six: problems the model can *nearly* do. That band is where real agent
+work lives, and reporting only the ten-instance average would understate the
+effect where it exists while implying one where it doesn't.
 
 The curve is computed by exact subsampling over samples actually drawn, not
 modelled from an assumed independence between candidates. Every number is
@@ -73,7 +90,7 @@ OpenAI-compatible API. Two Token Factory specifics shaped the design:
 
 **Execution:** an `Executor` abstraction with two backends behind one interface
 — Token Factory Sandboxes (ConTree) and Docker. Every backend must pass a
-9-test conformance suite before it's trusted. The load-bearing test is fork
+9-test conformance suite before it's trusted; both pass, 18/18. The load-bearing test is fork
 isolation: if two runs from one state can see each other's writes, branches
 silently contaminate their siblings and *nothing looks broken*.
 
@@ -103,14 +120,22 @@ call at temperature 0.9 cut cost — and dropped apply rate from 67% to **11%**.
 destroys format compliance. Four batches at spread temperatures (0.0 / 0.35 /
 0.65 / 0.95) kept most of the saving and restored apply rate to 87%.
 
-**Sandboxes is blocked.** Every Token Factory Sandboxes call on our account
-returns `403 "You do not have permission to perform this action"`, while
-inference on the same key succeeds. The ConTree backend is written, and the
-conformance suite will validate it in ninety seconds — but it has never run.
-Every result above therefore uses the Docker fallback, which is an honest
-baseline, not a strawman: it uses `docker commit` as a checkpoint, which is what
-a competent engineer would build without ConTree. We've reported it with a
-request ID.
+**Sandboxes was blocked, then wasn't.** For most of the build, every Token
+Factory Sandboxes call on our account returned `403 "You do not have permission
+to perform this action"` while inference on the same key succeeded. We did the
+only useful thing available: built the ConTree backend anyway, behind the same
+`Executor` interface, and validated the thesis on a Docker fallback that uses
+`docker commit` as a checkpoint — an honest baseline, not a strawman, since it
+is what a competent engineer would build without ConTree. Then we reported it
+with a request ID. Access was enabled, and the conformance suite passed
+**18/18 across both backends on first contact** — including `test_fork_isolation
+[contree]`, the one test the entire project rests on. The full benchmark
+re-ran on Sandboxes the same day.
+
+The lesson we'd keep: an abstraction you write before you can test it is a bet.
+Making the conformance suite the thing that settles the bet — nine tests, sixty
+seconds, one verdict — is what turned a blocked integration from a schedule
+risk into a waiting task.
 
 ## Accomplishments that we're proud of
 
@@ -132,7 +157,7 @@ format call through a defaulting dictionary. Different reasoning, both correct,
 both verified. Width bought genuine diversity — not sixteen copies of one idea,
 which is the failure mode we were most worried about.
 
-**$0.33 for the entire benchmark.** Ten instances, 160 proposals, 139 sandboxed
+**$0.29 for the entire benchmark.** Ten instances, 160 proposals, 139 sandboxed
 test runs — three cents an instance. Batched `n` sampling on Token Factory and
 disabled reasoning traces did most of that work.
 
@@ -174,8 +199,6 @@ All of this is written up as it happened — including the wrong turns — in
 
 ## What's next
 
-- **Validate on Sandboxes.** The thesis is about forking execution state; we've
-  proved it on a Docker stand-in. Everything is ready for the real thing.
 - **Full-suite verification.** A solve currently means 40 sampled regression
   tests passed. The winning patch should face the whole suite.
 - **Attack the remaining 13% patcher tax**, which is width we already paid for.

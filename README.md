@@ -19,28 +19,37 @@ single-shot agent therefore fails five times in six. Coppice does not make the
 model better; it changes how compute is allocated.
 
 Measured on 10 SWE-bench Lite instances, 16 independent proposals each,
-Nemotron 3 Super on Nebius Token Factory:
+Nemotron 3 Super on Nebius Token Factory, executed in Token Factory Sandboxes:
 
-| attempts | all 10 instances | the 5 where the model has a real but unreliable shot |
+| attempts | all 10 instances | the 6 where the model has a real but unreliable shot |
 |---:|---|---|
-| 1  | 16% | 19% |
-| 2  | 26% | 33% |
-| 4  | 36% | 53% |
-| 8  | 48% | **76%** |
+| 1  | 11% | 19% |
+| 2  | 20% | 33% |
+| 4  | 32% | 54% |
+| 8  | 46% | **77%** |
 | 16 | 60% | **100%** |
 
-**6 of 10 instances solved, $0.33 for the entire sweep** — 160 proposals, 139
-applied, each one verified against the repository's own test suite.
+**6 of 10 instances solved, $0.29 for the entire sweep** — 160 proposals, 139
+applied, each verified against the repository's own test suite.
 
-The second column is the honest one. Width does nothing for the instance the
-model already solves reliably, and nothing for the four it never solves.
-Reporting only the average would understate the effect where it exists and
-imply one where it does not. `bench/analyze.py` prints the decomposition.
+**The curve replicates.** We ran the same benchmark twice on two different
+executors, with fresh samples each time. The sweet-spot row came out
+19 / 33 / 53 / 76 / 100 on Docker and 19 / 33 / 54 / 77 / 100 on Sandboxes —
+within a point at every width, apply rate 87% on both. Two independent
+measurements agreeing is worth more than either one.
+
+The second column is the honest one. Four of the ten instances never solve
+once in sixteen tries; width does nothing for them, because no amount of
+breadth manufactures a capability the model lacks. Reporting only the
+ten-instance average would understate the effect where it exists and imply one
+where it does not. `bench/analyze.py` prints the decomposition.
 
 The curve is computed by exact subsampling over the samples actually drawn
 (`bench/analyze.py`), not modelled from an assumed independence between
-candidates. Reproduce it with `python bench/width_curve.py --samples 16`. The run behind the table
-above is committed at `results/width-curve-nebius.json`.
+candidates. Reproduce it with
+`python bench/width_curve.py --backend contree --samples 16`. Both runs behind
+the table above are committed: `results/width-curve-sandboxes.json` and
+`results/width-curve-nebius.json` (Docker).
 
 **Green means the repository's own test suite passed** — the tests its
 maintainers wrote went from failing to passing with nothing else broken. Not
@@ -82,8 +91,9 @@ snapshot management, no teardown. Validated by the full conformance suite
 (**18/18 across both backends**), including fork isolation, which the soundness
 of beam search depends on.
 
-Measured against the Docker fallback on the same instance, same width, same
-model:
+Measured against the Docker executor on the same instance, same width, same
+model — Docker is not a strawman here, it uses `docker commit` as its
+checkpoint, which is what you would build without ConTree:
 
 | | Docker (local) | Token Factory Sandboxes |
 |---|---|---|
@@ -101,7 +111,8 @@ twice under width-16 concurrency; Sandboxes ran clean. See
 
 ## Install
 
-Requires Python 3.12 and a running Docker daemon.
+Requires Python 3.12. A Nebius Token Factory key runs everything; Docker is
+optional and only needed for the `--backend docker` executor.
 
 ```bash
 git clone <this repo> && cd coppice
@@ -125,19 +136,25 @@ COPPICE_PROVIDER=nebius python -m coppice.config --check
 COPPICE_PROVIDER=nebius python -m coppice.search --width 6 --beam 2 --depth 3
 ```
 
-**A real SWE-bench Lite instance** (pulls a ~1.5GB prebuilt image):
+**A real SWE-bench Lite instance** on Token Factory Sandboxes (no local image
+pull — ConTree imports the OCI image once, then caches it):
 
 ```bash
-docker pull ghcr.io/epoch-research/swe-bench.eval.x86_64.pylint-dev__pylint-7993
-COPPICE_PROVIDER=nebius python -m coppice.search \
+COPPICE_PROVIDER=nebius python -m coppice.search --backend contree \
   --task pylint-dev__pylint-7993 --width 16 --beam 1 --depth 1 --propose-tier super
 ```
 
-**The width-curve benchmark** (10 instances, ~$0.30, ~40 min):
+Add `--backend docker` to run it locally instead; that path needs
+`docker pull ghcr.io/epoch-research/swe-bench.eval.x86_64.pylint-dev__pylint-7993`
+first.
+
+**The width-curve benchmark** (10 instances, ~$0.30; ~15 min warm on Sandboxes,
+~40 min on Docker):
 
 ```bash
-COPPICE_MAX_SPEND=6 COPPICE_PROVIDER=nebius python bench/width_curve.py --samples 16
-python bench/analyze.py results/width-curve-nebius.json
+COPPICE_MAX_SPEND=6 COPPICE_PROVIDER=nebius \
+  python bench/width_curve.py --backend contree --samples 16
+python bench/analyze.py results/width-curve-sandboxes.json
 ```
 
 **Replay any run as the search tree:**
@@ -185,9 +202,9 @@ and nothing looks broken.
   full-suite guarantee.
 - **Single-file patches only.** SWE-bench Lite happens to be single-file
   throughout, so this costs nothing there, but it is a real limit on generality.
-- **The width curve was measured on Docker**, before Sandboxes access was
-  granted. Solve rates should be identical (same model, same prompts), but the
-  wall-clock and concurrency figures in findings-04 understate Sandboxes.
+- **10 instances is a small sample.** The regime split (6 sweet-spot, 4 out of
+  reach) is stable across two independent runs, but confidence intervals on
+  any single instance are wide.
 - **Width helps in a band.** It does nothing for instances the model already
   solves reliably, and nothing for instances out of reach. See
   `docs/findings-04-width-curve.md`.

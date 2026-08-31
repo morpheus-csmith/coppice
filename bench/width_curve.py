@@ -33,6 +33,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from coppice.events import EventLog                      # noqa: E402
 from coppice.executor.docker_exec import DockerExecutor   # noqa: E402
+from coppice.executor.contree_exec import ContreeExecutor  # noqa: E402
 from coppice.models import Router                         # noqa: E402
 from coppice.search import search                         # noqa: E402
 from coppice.swebench import load_lite, to_task           # noqa: E402
@@ -82,6 +83,9 @@ async def main() -> None:
     ap.add_argument("--samples", type=int, default=16)
     ap.add_argument("--tier", default="super")
     ap.add_argument("--instances", default=",".join(INSTANCES))
+    ap.add_argument("--backend", default="docker",
+                    choices=["docker", "contree"],
+                    help="contree = Token Factory Sandboxes")
     args = ap.parse_args()
 
     wanted = [x.strip() for x in args.instances.split(",") if x.strip()]
@@ -96,7 +100,8 @@ async def main() -> None:
         if done:
             print(f"resuming; {len(done)} already done\n")
 
-    print(f"{args.samples} samples per instance, tier={args.tier}\n")
+    print(f"{args.samples} samples per instance, tier={args.tier}, "
+          f"backend={args.backend}\n")
     print(f"{'INSTANCE':<32}{'ASKED':>6}{'APPLIED':>8}{'SOLVED':>7}{'COST':>9}{'TIME':>7}")
     print("-" * 69)
 
@@ -105,7 +110,7 @@ async def main() -> None:
             print(f"  {iid}: unknown, skipping")
             continue
         task = to_task(by_id[iid])
-        ex = DockerExecutor()
+        ex = ContreeExecutor() if args.backend == "contree" else DockerExecutor()
         log_path = Path(f"runs/width-{iid}.jsonl")
         log = EventLog(log_path, echo=False)
         t0, c0 = time.perf_counter(), router.ledger.total_cost

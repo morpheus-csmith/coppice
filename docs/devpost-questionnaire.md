@@ -96,15 +96,25 @@ Because inference was OpenAI-compatible, switching providers was **one
 environment variable** — we prototyped on NVIDIA Build and moved to Token
 Factory without touching a line of application code.
 
-**Token Factory Sandboxes** was the intended executor and the reason we chose
-this track. ConTree versions the filesystem after every command, which makes
-forking a prepared checkpoint nearly free — exactly the primitive our thesis
-needs. We implemented the backend and a conformance suite to validate it, but
-every Sandboxes call on our account returns
-`403 "You do not have permission to perform this action"` while inference on
-the same key succeeds. Reported with request id
-`58bb1d784337cba8f8b3258ff36990bb`. All published results therefore use a local
-Docker fallback.
+**Token Factory Sandboxes** is the executor and the reason we chose this track.
+ConTree versions the filesystem after every command, which makes forking a
+prepared checkpoint nearly free — exactly the primitive our thesis needs. Our
+headline benchmark runs on it.
+
+Measured against a local Docker executor doing the same work with
+`docker commit` as its checkpoint: **66.2s per branch on Docker, 4.4s on
+Sandboxes**, and twelve concurrent branches finish within 600ms of each other
+where Docker's twelve all take 66.2s because they are queueing. Warm, a
+16-proposal instance completes in ~30s against Docker's ~240s. Docker also
+segfaulted twice under width-16 concurrency; Sandboxes ran clean.
+
+Access was initially blocked — every call returned
+`403 "You do not have permission to perform this action"` while inference on the
+same key succeeded (request id `58bb1d784337cba8f8b3258ff36990bb`). Support
+enabled it and the conformance suite passed **18/18 across both backends on
+first contact**. We kept the Docker backend, and the two executors produce the
+same solve curve within one point at every width — an unusually clean
+cross-check on both.
 
 We did not use AI Cloud GPU instances, Serverless Endpoints, or Serverless Jobs.
 
@@ -115,11 +125,13 @@ We did not use AI Cloud GPU instances, Serverless Endpoints, or Serverless Jobs.
 Serverless removes GPU operations entirely, the OpenAI-compatible API means
 zero integration cost, latency was good (Super at 0.7s on short prompts), and
 our entire 10-instance benchmark — 160 proposals, 139 sandboxed test runs —
-cost **$0.33**.
+cost **$0.29**.
 
 Two points off for friction that is all fixable: model IDs that follow three
 different naming conventions inside one catalogue, no pricing available through
-the API, and a beta service that 403s with no documented path to enablement.
+the API, and a Sandboxes 403 whose body named no route to enablement (support
+resolved it quickly once we asked — the gap was discoverability, not
+willingness).
 
 ## Rate the inference experience vs. previous environments (1–10)
 
@@ -152,8 +164,10 @@ this was built on. That's the point of serverless.
    `nvidia/nemotron-3-super-120b-a12b`, and `nvidia/Nemotron-3-Ultra-550b-a55b`
    use three conventions in one catalogue. Ids can't be derived, and they differ
    from the same models' ids on NVIDIA Build.
-4. **A 403 that names its remedy.** Sandboxes rejects with no indication of
-   whether access is granted separately, requested, or already enabled.
+4. **A 403 that names its remedy.** Sandboxes rejected with no indication of
+   whether access is granted separately, requested, or already enabled. Support
+   enabled it within a day of us asking — but we lost build time to not knowing
+   asking was the answer. One sentence in the response body fixes this.
 5. **Grammar-constrained or schema-constrained decoding.** See below — this
    would have removed the single biggest source of waste in our project.
 

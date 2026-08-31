@@ -1,22 +1,24 @@
 # Demo video — production script
 
-**Target: 2:30.** Limit is 3:00; leave the margin.
+**Target: 2:55.** Hard limit is 3:00 — time your take, and if you overrun, cut
+the 0:18–0:45 section down to its first sentence.
 **Required by the rules:** the audio must name Nebius Token Factory and the
-NVIDIA Nemotron models. Both are covered at 1:15–1:45 — do not cut that section.
+NVIDIA Nemotron models. Both are covered at 1:20–1:50 — do not cut that section.
 
 ---
 
 ## Before you hit record
 
-Nothing in this video waits on a live run. A real width-16 search takes ~10
-minutes, so the *replay* carries the visual and the terminal output is
-pre-existing. Set these up as separate windows/scenes first:
+One live run is worth showing. On Token Factory Sandboxes a warm width-4 run
+finishes in well under a minute, so Scene C is a genuine end-to-end run, not a
+mock. Everything else is pre-staged. Set these up as separate windows/scenes
+first:
 
 | # | Window | Prepare it with |
 |---|---|---|
-| A | Browser — replay page, scrubbed to 0 | `python viz/build_replay.py results/demo-pylint7993.jsonl -o viz/replay.html` then open it |
-| B | Terminal — results table already printed | `python bench/analyze.py results/width-curve-nebius.json` |
-| C | Terminal — a short live run, ready to launch | type the command, **don't press enter** (see 0:50) |
+| A | Browser — replay page, scrubbed to 0 | `python viz/build_replay.py results/contree-pylint7993.jsonl -o viz/replay.html` then open it. This is the Sandboxes run — 13 branches, 3 green |
+| B | Terminal — results table already printed | `python bench/analyze.py results/width-curve-sandboxes.json` |
+| C | Terminal — a short live run, ready to launch | type the command, **don't press enter** (see 0:45). Do one throwaway run first so the image is cached — cold, it pays a ~2 min one-time OCI import |
 | D | Editor — `src/coppice/models.py` scrolled to the `ROLES` table | |
 | E | Browser — the GitHub repo page | |
 
@@ -40,7 +42,7 @@ branches appearing pass in silence.
 > This agent is fixing one bug thirteen different ways at the same time — and
 > it only paid to set up the repository once.
 >
-> Two of those thirteen turn the test suite green. That's the whole idea.
+> Three of those thirteen turn the test suite green. That's the whole idea.
 
 ## 0:18 – 0:45 · The problem  [Scene A, let replay finish]
 
@@ -48,30 +50,30 @@ branches appearing pass in silence.
 > the time. One attempt fails five times in six.
 >
 > Most agents try once, fail, and stop — not because the model can't solve
-> it, but because it didn't solve it *that* time.
->
-> Nobody tries sixteen times because every attempt normally means rebuilding
-> the environment first.
+> it, but because it didn't solve it *that* time. Nobody tries sixteen times
+> because every attempt normally means rebuilding the environment first.
 
-## 0:45 – 1:15 · The run  [Scene C — press enter now]
+## 0:45 – 1:20 · The run  [Scene C — press enter now]
 
-**Screen:** launch a short live run so real output scrolls:
+**Screen:** launch a real run against Token Factory Sandboxes:
 ```
-COPPICE_PROVIDER=nebius python -m coppice.search \
+COPPICE_PROVIDER=nebius python -m coppice.search --backend contree \
   --task pylint-dev__pylint-7993 --width 4 --beam 1 --depth 1 --propose-tier super
 ```
-Talk over the setup and baseline lines. You do not need it to finish.
+Warm, this finishes while you're talking. Let it.
 
 > Coppice prepares one checkpoint, then forks *that state* for every attempt.
 > Nothing is rebuilt.
 >
-> Each patch runs in its own sandbox, judged by the repository's own test
-> suite — not by a model grading its own work.
+> Those forks are Token Factory Sandboxes. It versions the filesystem after
+> every command, so a branch costs four seconds instead of sixty-six — and
+> twelve of them run at once without slowing each other down.
 >
-> Patches that don't apply are rejected before anything forks, so a bad idea
-> costs nothing.
+> Every patch is judged by the repository's own test suite — not by a model
+> grading its own work. And patches that don't apply are rejected before
+> anything forks, so a bad idea costs nothing.
 
-## 1:15 – 1:45 · Nemotron and Token Factory  [Scene D]  ← REQUIRED
+## 1:20 – 1:50 · Nemotron and Token Factory  [Scene D]  ← REQUIRED
 
 **Screen:** `models.py`, the `ROLES` table and the comment above it.
 
@@ -80,14 +82,14 @@ Talk over the setup and baseline lines. You do not need it to finish.
 >
 > We tested all three tiers. Nano applied zero patches of sixteen — it
 > paraphrases code while copying it. Ultra applied one, at eight times the
-> cost. Super applied thirteen. The bottleneck was structured output, not
+> cost. Super applied thirteen. The bottleneck is structured output, not
 > reasoning.
 >
 > Two Token Factory features shaped this. Its `n` parameter bills the prompt
 > once however many samples you draw — that halved our cost. And switching
 > Nemotron's reasoning off for generation cut output tokens twenty-five fold.
 
-## 1:45 – 2:15 · The results  [Scene B]
+## 1:50 – 2:25 · The results  [Scene B]
 
 **Screen:** the `analyze.py` table already on screen. Point at the SWEET SPOT row.
 
@@ -95,24 +97,28 @@ Talk over the setup and baseline lines. You do not need it to finish.
 >
 > On the instances where the model has a real but unreliable shot, going from
 > one attempt to eight takes the solve rate from nineteen percent to
-> seventy-six.
+> seventy-seven. Sixteen attempts solve all of them.
 >
-> The whole benchmark cost thirty-three cents.
+> The whole benchmark cost twenty-nine cents.
 >
-> Width does nothing for problems the model already solves, or for problems
-> out of reach. We report all three cases — averaging them would hide where
-> this actually works.
+> We ran it twice, on two different executors, with fresh samples. The two
+> curves agree within one point at every width.
+>
+> Four of the ten never solve at all. Width can't manufacture a capability the
+> model doesn't have — so we report that separately. Averaging it in would hide
+> where this actually works.
 
-## 2:15 – 2:35 · The proof  [Scene A — scroll to the winning row]
+## 2:25 – 2:45 · The proof  [Scene A — scroll to the winning row]
 
 **Screen:** the green row in the replay, then the winning patch.
 
-> Here's a fix it found — real code, real test suite, verified.
+> Three green branches. Real code, the repository's own test suite, verified.
 >
-> On this bug it found two *different* correct patches. Breadth bought real
-> diversity, not sixteen copies of one guess.
+> And they aren't the same patch. One escaped the brace literals before
+> parsing the template; another routed the format call through a defaulting
+> dictionary. Breadth bought real diversity, not sixteen copies of one guess.
 
-## 2:35 – 2:45 · Close  [Scene E]
+## 2:45 – 2:55 · Close  [Scene E]
 
 **Screen:** the GitHub repo.
 
@@ -123,9 +129,10 @@ Talk over the setup and baseline lines. You do not need it to finish.
 
 ## Notes
 
-- **Do not claim Sandboxes works.** The ConTree backend is written but blocked
-  on a 403; results use the Docker executor. The script never says otherwise —
-  keep it that way. It's disclosed in the README and the story.
+- **Sandboxes is live and validated** — conformance suite 18/18 across both
+  backends, full benchmark re-run on it. Claim it. What you must *not* claim is
+  a SWE-bench Lite score: this is 10 hand-picked instances from small repos, and
+  the script says "ten SWE-bench Lite instances", never "on SWE-bench Lite".
 - If you overrun, cut the second half of 0:18–0:45. The hook and the
   Nemotron/Token Factory section are the two that can't be lost.
 - Record two takes of the cold open. It's the twenty seconds that decides

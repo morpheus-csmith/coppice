@@ -85,3 +85,47 @@ regime that pays is the regime a laptop cannot serve.
 2. Attack the 33% patcher tax -- retry rejected proposals with the parse error
    fed back, which costs one call and no container.
 3. Re-run on Token Factory once access exists, to confirm the curve holds.
+
+
+---
+
+## Replication on Token Factory Sandboxes (2026-08-31)
+
+The curve above was measured on the Docker executor. After Sandboxes access was
+granted we re-ran the identical benchmark on it — same instances, same width,
+same model, fresh stochastic draws.
+
+| width | Docker (n=5 sweet spot) | Sandboxes (n=6 sweet spot) |
+|---|---|---|
+| 1  | 19% | 19% |
+| 2  | 33% | 33% |
+| 4  | 53% | 54% |
+| 8  | **76%** | **77%** |
+| 16 | 100% | 100% |
+
+Apply rate 87% on both. Instances solved 6/10 on both. Pooled per-proposal
+rate differs (16.2% vs 11.2%) because these are independent draws from a
+~15% process, which is exactly the variance finding-03 warned about.
+
+**Why this matters more than either run.** The executor cannot affect whether
+a patch is correct — it runs the same tests on the same code. So agreement was
+the prediction, and getting it is a check on the whole measurement chain: the
+patcher, the scorer, the subsampling estimator, and both backends. A
+divergence would have meant a bug the conformance suite missed.
+
+## Infrastructure, measured
+
+The executors differ enormously on time, and not at all on correctness:
+
+| | Docker (local) | Sandboxes (cold images) | Sandboxes (warm) |
+|---|---|---|---|
+| per instance | ~240s | ~130s | **~30s** |
+| per branch | 66.2s | 4.4s | 4.4s |
+| 12 concurrent branches | ~53s | 4.6s | 4.6s |
+
+The warm-cache figure is the honest steady state: first use of each SWE-bench
+image pays a one-time OCI import. After that, a full 16-proposal instance —
+16 model calls, ~14 sandboxed test runs — completes in about half a minute.
+
+Raw data: `results/width-curve-sandboxes.json`,
+`results/width-curve-nebius.json` (Docker).
