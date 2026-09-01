@@ -99,8 +99,8 @@ OpenAI-compatible API. Two Token Factory specifics shaped the design:
 
 **Execution:** an `Executor` abstraction with two backends behind one interface
 — Token Factory Sandboxes (ConTree) and Docker. Every backend must pass a
-9-test conformance suite before it's trusted; both pass, 18/18. The load-bearing test is fork
-isolation: if two runs from one state can see each other's writes, branches
+9-test conformance suite before it's trusted; both pass, 18/18. The
+load-bearing test is fork isolation: if two runs from one state can see each other's writes, branches
 silently contaminate their siblings and *nothing looks broken*.
 
 **Patching:** SEARCH/REPLACE blocks matched exactly, in Python, *before*
@@ -198,7 +198,7 @@ That's the part we'd want another engineer to read.
 
 ## What we learned
 
-Three times, a measurement artifact nearly became a published claim.
+Four times, something we believed nearly became a published claim.
 
 We measured single-shot solve rate across three instances, got 0/3 twice, and
 nearly abandoned the benchmark. At a true 15% rate, P(zero solves in three) is
@@ -214,14 +214,26 @@ And a stale zero-cost row sat in our benchmark scoring 0/16 on an instance we'd
 watched solve three separate times, quietly costing four points of headline
 result.
 
-The rule we ended up with: **a measurement taken under conditions you will not
+Those three share a rule: **a measurement taken under conditions you will not
 ship under is not evidence, however clean it looks.** The harness now asserts
 that any zero-cost row is missing data rather than a failure to solve.
+
+The fourth was different, and we found it last. "The two winning patches used
+different reasoning" had been sitting in three of our documents — this one
+included — sourced from a real run whose patches we never committed. Every
+other headline number here is recomputable by a reader who distrusts us; that
+one was not, so nothing could contradict it and it got copied twice. We made
+the winners loggable, re-ran, and found the honest version is narrower.
+
+Its rule is narrower too: **a claim whose evidence is not committed is not a
+finding, it is a memory.** The test is mechanical — for every claim in a
+document, name the file a hostile reader opens to disprove it. If there is no
+such file, produce one or delete the sentence.
 
 All of this is written up as it happened — including the wrong turns — in
 `docs/findings-01` through `findings-07`.
 
-## What's next
+## What's next for Coppice
 
 - **Measure insight diversity, not just patch diversity.** Our three winners
   were three implementations of one idea. Whether width ever finds two
